@@ -3,9 +3,11 @@
 //         o coin  h heart  1 extra life  G star gem  C checkpoint  E goal  P start
 //         b thornbug  m puffshroom  w wisp  t batling  r bramble roller  a crystal crab
 //         S spring  M moving plank (horizontal)  V moving plank (vertical)  X crumbling plank  K boss
+//         R swinging plank  O plank wheel  % lava  > conveyor  f fire sprite  D secret door  U bonus spot  Q bonus exit  v bonus coin
 export const T = 30;
 export const ROWS = 12;
 const G2 = (w, ch = '#') => [ch.repeat(w), '#'.repeat(w)];
+const F = (rows) => [...Array(12 - rows.length).fill('.'.repeat(rows[0].length)), ...rows];
 
 export const CHUNKS = {
   start: ['................', '.P....o.o.o.....', ...G2(16)],
@@ -50,6 +52,77 @@ export const CHUNKS = {
   iceflat: ['......................', '...o.o.o.o.o.o.o......', '......................', '.......a........a.....', ...G2(22, '~')],
   icegap: ['....ooo......ooo....', '....................', '....................', '~~~~...~~~~~~...~~~~', '####...######...####'],
   clouds: ['......o.....o.....o.....', '........................', '.....ccc...ccc...ccc....', '####................####', '####................####'],
+  swing: F([
+    '.....o.o.o.o.o.o....',
+    '....................',
+    '......R.....R.......',
+    '....................',
+    '....................',
+    '####..........######',
+    '####..........######']),
+  wheel: F([
+    '.........ooo........',
+    '....................',
+    '....................',
+    '..........O.........',
+    '....................',
+    '....................',
+    '....................',
+    '#######........#####',
+    '#######........#####']),
+  lava: F([
+    '......ooo......ooo....',
+    '......................',
+    '......f........f......',
+    '####%%%%%####%%%%%####',
+    '######################']),
+  conveyor: F([
+    '....o.o.o.o.o.o.o.o...',
+    '......................',
+    '......b........b......',
+    '##>>>>>>>>>>>>>>>>>>##',
+    '######################']),
+  secretdoor: F([
+    '....o.o.o.............',
+    '....D.................',
+    '...===................',
+    '......................',
+    '..B.......b...........',
+    '######################',
+    '######################']),
+  fork: F([
+    '...........o.o.o.o...G...o.o.o.....',
+    '......................................'.slice(0, 35),
+    '.......===========...=========.....',
+    '...................................',
+    '...................................',
+    '...................................',
+    '...S.......a........^^^.....a......',
+    '#########...######.#####....#######',
+    '#########...######.#####....#######']),
+  iceslide: F([
+    '...######oo.................',
+    '...#############oo..........',
+    '...#############............',
+    '...####################oo...',
+    '...####################.....',
+    '.S.#########################',
+    '############################']),
+  bonus: F([
+    '..v.v.v.v.v.v.v.v.v.v.v.v.v.v.',
+    '..............................',
+    '...v.v.v.v.v.v.v.v.v.v.v.v.v..',
+    '..............................',
+    '.U...........1..............Q.',
+    '##############################',
+    '##############################']),
+  embers: F([
+    '....o.o.o.o.o.o.o.o.o...',
+    '........................',
+    '.....=====....=====.....',
+    '.......f..........f.....',
+    '###%%%%%%%%%%%%%%%%%%###',
+    '########################']),
   goal: [...Array(9).fill('...............#'), '..........E....#', '################', '################'],
   boss: [
     ...Array(7).fill('.............................#'),
@@ -75,25 +148,35 @@ export const WORLDS = [
     sky: [0xff9fc8, 0xffe7c0], fog: 0xffd6d0, grass: 0xf5f0ff, dirt: 0xb8a8d8, dirt2: 0x8070a8, plank: 0xffd27a, accent: 0xffe066,
     decor: ['tower', 'cloudpuff', 'banner', 'tower', 'cloudpuff', 'flower'], far: 0xd8b8e8, music: 2, sky3: true,
   },
+  {
+    name: 'Emberpeak Mines', boss: 'magma', bossName: 'Cinder Golem',
+    sky: [0x1a0a1e, 0x8a2a1a], fog: 0x6a2a22, grass: 0x8a7468, dirt: 0x5a3a32, dirt2: 0x3a2224, plank: 0xc8843a, accent: 0xff8a2a,
+    decor: ['rockspire', 'deadtree', 'minelamp', 'rock', 'ember', 'deadtree'], far: 0x3a1a22, music: 3, mine: true,
+  },
 ];
 
 const L = (world, name, chunks) => ({ world, name, chunks });
 export const LEVELS = [
-  L(0, 'Sunny Glade', ['start', 'meadow', 'gap', 'stairs', 'bugs', 'check', 'spring', 'pitsplats', 'hoppers', 'check', 'crates', 'gap', 'goal']),
-  L(0, 'Mushroom Hollow', ['start', 'hoppers', 'moving', 'check', 'crumble', 'spikes', 'crates', 'checkh', 'pitsplats', 'moving', 'hoppers2', 'spring', 'upper', 'goal']),
-  L(0, 'Bramble Bend', ['start', 'bugs', 'rollers', 'upper', 'check', 'spikes2', 'bats', 'secret', 'checkh', 'crumble', 'meadow', 'stairs', 'goal']),
-  L(0, 'Lantern Ridge', ['start', 'vertical', 'pitsplats', 'check', 'wisps', 'rollers', 'crates', 'checkh', 'moving', 'crumble', 'secret', 'spring', 'goal']),
-  L(0, 'Bramblecrown Lair', ['start', 'meadow', 'hoppers', 'check', 'spikes', 'stairs', 'crates', 'checkh', 'boss']),
-  L(1, 'Shimmer Steps', ['start', 'iceflat', 'icegap', 'stairs', 'check', 'bats', 'crates', 'checkh', 'icegap', 'upper', 'iceflat', 'goal']),
-  L(1, 'Echo Grotto', ['start', 'icegap', 'crumble', 'vertical', 'check', 'rollers', 'iceflat', 'secret', 'checkh', 'moving', 'pitsplats', 'hoppers', 'goal']),
-  L(1, 'Frostbite Falls', ['start', 'bats', 'spikes2', 'iceflat', 'check', 'upper', 'crumble', 'icegap', 'checkh', 'rollers', 'secret', 'vertical', 'goal']),
-  L(1, 'Prism Run', ['start', 'iceflat', 'moving', 'crumble', 'check', 'spikes2', 'bats', 'stairs', 'checkh', 'pitsplats', 'upper', 'rollers', 'crates', 'goal']),
-  L(1, 'Warden Vault', ['start', 'icegap', 'secret', 'check', 'bats', 'vertical', 'checkh', 'crates', 'boss']),
-  L(2, 'Cloudbridge', ['start', 'clouds', 'wisps', 'stairs', 'check', 'clouds', 'upper', 'checkh', 'pitsplats', 'crates', 'goal']),
-  L(2, 'Banner Walk', ['start', 'clouds', 'bats', 'vertical', 'check', 'crumble', 'rollers', 'secret', 'checkh', 'clouds', 'moving', 'hoppers', 'goal']),
-  L(2, 'Gale Gardens', ['start', 'wisps', 'spikes2', 'clouds', 'check', 'upper', 'crumble', 'bats', 'checkh', 'moving', 'vertical', 'clouds', 'secret', 'goal']),
-  L(2, 'Spire Climb', ['start', 'clouds', 'crumble', 'rollers', 'check', 'spikes2', 'bats', 'upper', 'checkh', 'clouds', 'pitsplats', 'vertical', 'wisps', 'crates', 'goal']),
-  L(2, 'Rook Roost', ['start', 'clouds', 'stairs', 'check', 'wisps', 'secret', 'checkh', 'crates', 'boss']),
+  L(0, 'Sunny Glade', ['start', 'meadow', 'gap', 'stairs', 'bugs', 'check', 'spring', 'pitsplats', 'hoppers', 'swing', 'check', 'crates', 'secretdoor', 'meadow', 'gap', 'goal', 'bonus']),
+  L(0, 'Mushroom Hollow', ['start', 'hoppers', 'moving', 'check', 'crumble', 'spikes', 'crates', 'fork', 'checkh', 'pitsplats', 'moving', 'hoppers2', 'swing', 'spring', 'upper', 'goal']),
+  L(0, 'Bramble Bend', ['start', 'bugs', 'rollers', 'upper', 'check', 'spikes2', 'swing', 'bats', 'secret', 'checkh', 'crumble', 'fork', 'meadow', 'stairs', 'goal']),
+  L(0, 'Lantern Ridge', ['start', 'vertical', 'pitsplats', 'check', 'wisps', 'rollers', 'swing', 'crates', 'checkh', 'moving', 'crumble', 'secretdoor', 'secret', 'spring', 'swing', 'goal', 'bonus']),
+  L(0, 'Bramblecrown Lair', ['start', 'meadow', 'hoppers', 'check', 'spikes', 'swing', 'stairs', 'crates', 'checkh', 'boss']),
+  L(1, 'Shimmer Steps', ['start', 'iceflat', 'icegap', 'stairs', 'check', 'bats', 'iceslide', 'crates', 'checkh', 'icegap', 'wheel', 'upper', 'iceflat', 'goal']),
+  L(1, 'Echo Grotto', ['start', 'icegap', 'crumble', 'vertical', 'check', 'rollers', 'iceflat', 'secretdoor', 'secret', 'checkh', 'wheel', 'moving', 'pitsplats', 'hoppers', 'goal', 'bonus']),
+  L(1, 'Frostbite Falls', ['start', 'bats', 'spikes2', 'iceslide', 'check', 'upper', 'crumble', 'icegap', 'checkh', 'rollers', 'fork', 'secret', 'vertical', 'goal']),
+  L(1, 'Prism Run', ['start', 'iceflat', 'moving', 'crumble', 'check', 'spikes2', 'wheel', 'bats', 'stairs', 'checkh', 'pitsplats', 'upper', 'iceslide', 'rollers', 'crates', 'goal']),
+  L(1, 'Warden Vault', ['start', 'icegap', 'secret', 'check', 'bats', 'wheel', 'vertical', 'checkh', 'crates', 'boss']),
+  L(2, 'Cloudbridge', ['start', 'clouds', 'wisps', 'stairs', 'check', 'clouds', 'swing', 'upper', 'checkh', 'pitsplats', 'wheel', 'crates', 'goal']),
+  L(2, 'Banner Walk', ['start', 'clouds', 'bats', 'vertical', 'check', 'crumble', 'rollers', 'secretdoor', 'secret', 'checkh', 'clouds', 'swing', 'moving', 'hoppers', 'goal', 'bonus']),
+  L(2, 'Gale Gardens', ['start', 'wisps', 'spikes2', 'clouds', 'check', 'upper', 'crumble', 'wheel', 'bats', 'checkh', 'moving', 'fork', 'vertical', 'clouds', 'secret', 'goal']),
+  L(2, 'Spire Climb', ['start', 'clouds', 'crumble', 'rollers', 'check', 'spikes2', 'swing', 'bats', 'upper', 'checkh', 'clouds', 'wheel', 'pitsplats', 'vertical', 'wisps', 'crates', 'goal']),
+  L(2, 'Rook Roost', ['start', 'clouds', 'stairs', 'check', 'wisps', 'swing', 'secret', 'checkh', 'crates', 'boss']),
+  L(3, 'Cinder Gate', ['start', 'meadow', 'lava', 'conveyor', 'check', 'bugs', 'embers', 'stairs', 'checkh', 'swing', 'lava', 'crates', 'goal']),
+  L(3, 'Rail Run', ['start', 'conveyor', 'moving', 'lava', 'check', 'rollers', 'conveyor', 'wheel', 'checkh', 'secretdoor', 'embers', 'spring', 'goal', 'bonus']),
+  L(3, 'Magma Falls', ['start', 'embers', 'crumble', 'lava', 'check', 'vertical', 'conveyor', 'fork', 'checkh', 'swing', 'lava', 'spikes2', 'goal']),
+  L(3, 'Forge Heart', ['start', 'lava', 'wheel', 'conveyor', 'check', 'embers', 'upper', 'crumble', 'checkh', 'rollers', 'swing', 'lava', 'moving', 'crates', 'goal']),
+  L(3, 'Golem Furnace', ['start', 'conveyor', 'lava', 'check', 'embers', 'swing', 'checkh', 'crates', 'boss']),
 ];
 
 export function buildLevel(index) {

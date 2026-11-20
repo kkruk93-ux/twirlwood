@@ -5,7 +5,7 @@ import { LEVELS, CHUNKS } from '../js/levels.js';
 const chunkAt = (lvl, x) => { let c = Math.floor(x / 30); for (const n of LEVELS[lvl].chunks) { const w = CHUNKS[n][0].length; if (c < w) return n; c -= w; } return '?'; };
 const tally = {};
 let fails = 0;
-for (const ch of ['wren', 'bobble']) for (let i = 0; i < LEVELS.length; i++) {
+for (const ch of ['wren', 'bobble', 'pip']) for (let i = 0; i < LEVELS.length; i++) {
   const g = new Game({ hud() {}, toast() {}, complete() {}, gameOver() {} });
   g.load(i, ch); g.bot = true; g.assist = true;
   let last = 0; const where = [];

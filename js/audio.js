@@ -25,16 +25,16 @@ function tone(freq, dur, type = 'square', vol = 0.3, slide = 0, delay = 0, dest 
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.02);
 }
-function noise(dur, vol = 0.3, freq = 800, delay = 0) {
+function noise(dur, vol = 0.3, freq = 800, delay = 0, dest = sfxGain, hp = false) {
   if (!ctx) return;
   const t = ctx.currentTime + delay;
   const len = Math.floor(ctx.sampleRate * dur);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
   const s = ctx.createBufferSource(); s.buffer = buf;
-  const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+  const f = ctx.createBiquadFilter(); f.type = hp ? 'highpass' : 'lowpass'; f.frequency.value = freq;
   const g = ctx.createGain(); g.gain.value = vol;
-  s.connect(f); f.connect(g); g.connect(sfxGain); s.start(t);
+  s.connect(f); f.connect(g); g.connect(dest); s.start(t);
 }
 
 const SFX = {
@@ -57,6 +57,9 @@ const SFX = {
   click: () => tone(660, 0.05, 'square', 0.1),
   crumble: () => noise(0.3, 0.2, 700),
   switch: () => { [440, 660, 880].forEach((f, i) => tone(f, 0.1, 'triangle', 0.2, 1, i * 0.04)); noise(0.15, 0.15, 4000); },
+  warn: () => { tone(880, 0.09, 'square', 0.16); tone(880, 0.09, 'square', 0.16, 1, 0.14); },
+  roar: () => { tone(90, 0.7, 'sawtooth', 0.4, 0.6); noise(0.6, 0.35, 600); },
+  lava: () => noise(0.3, 0.2, 400),
   swing: () => { noise(0.12, 0.25, 2500); tone(500, 0.1, 'triangle', 0.12, 0.6); },
   bounce: () => tone(300, 0.25, 'sine', 0.3, 2.5),
   life: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.15, 'square', 0.15, 1, i * 0.07)),
@@ -65,26 +68,53 @@ const SFX = {
 };
 export function sfx(name) { if (sfxOn && ctx && SFX[name]) try { SFX[name](); } catch (e) { /* ignore */ } }
 
-// Original loops, one per world (+ a faster boss variant).
-const SONGS = [
-  { mel: [0, 4, 7, 9, 7, 4, 2, 4, 0, 2, 4, 7, 9, 12, 9, 7, 5, 9, 12, 9, 7, 4, 2, 0, 2, 4, 7, 4, 2, -1, 0, -1], bass: [0, 0, 5, 5, 7, 7, 0, 0], root: 523.25, beat: 0.2, wave: 'triangle' },
-  { mel: [0, 3, 7, 10, 7, 3, 5, 7, 12, 10, 7, 5, 3, 5, 7, -1, 0, 7, 12, 15, 12, 10, 7, 5, 3, 2, 0, 2, 3, -1, -1, -1], bass: [0, 0, 8, 8, 5, 5, 7, 7], root: 440, beat: 0.24, wave: 'sine' },
-  { mel: [7, 9, 12, 14, 12, 9, 7, 4, 5, 7, 9, 12, 9, 7, 5, 2, 4, 7, 11, 12, 14, 12, 11, 7, 9, 7, 5, 4, 2, 4, 0, -1], bass: [0, 0, 9, 9, 5, 5, 7, 7], root: 587.33, beat: 0.18, wave: 'square' },
+// Procedural music: each world has its own scale, chord loop, tempo and
+// instruments; the melody is generated from a seed (A A B A phrasing).
+// Boss fights switch to a darker, faster arrangement with heavier drums.
+const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], lydian: [0, 2, 4, 6, 7, 9, 11], hminor: [0, 2, 3, 5, 7, 8, 11] };
+const STYLES = [
+  { root: 261.63, scale: 'major', prog: [0, 5, 3, 4], bpm: 118, lead: 'triangle', arp: 'square', seed: 11, swing: 0.08 },
+  { root: 220.0, scale: 'dorian', prog: [0, 3, 6, 4], bpm: 96, lead: 'sine', arp: 'triangle', seed: 23, echo: true },
+  { root: 293.66, scale: 'lydian', prog: [0, 1, 4, 3], bpm: 128, lead: 'square', arp: 'triangle', seed: 37, swing: 0.05 },
+  { root: 196.0, scale: 'minor', prog: [0, 6, 5, 4], bpm: 138, lead: 'sawtooth', arp: 'square', seed: 53 },
 ];
-let song = SONGS[0], bossMode = false;
-export function setSong(i, boss = false) { song = SONGS[i] || SONGS[0]; bossMode = boss; }
+const BOSS = { root: 207.65, scale: 'hminor', prog: [0, 5, 3, 4], bpm: 150, lead: 'sawtooth', arp: 'square', seed: 71, heavy: true };
+let style = STYLES[0], bossMode = false, mel = [], echoNode = null;
+function rngS(seed) { let x = seed; return () => ((x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); }
+function compose(st) {
+  const r = rngS(st.seed), phrase = () => { const out = []; let deg = 4;
+    for (let i = 0; i < 32; i++) { // 2 bars of 16ths, notes on 8ths mostly
+      if (i % 2 && r() < 0.8) { out.push(null); continue; }
+      if (r() < 0.22) { out.push(null); continue; }
+      deg += Math.round((r() - 0.5) * 4); deg = Math.max(0, Math.min(11, deg)); out.push(deg);
+    } return out; };
+  const A = phrase(), B = phrase();
+  return [...A, ...A.map((d, i) => (i > 24 && d !== null ? Math.max(0, d - 1) : d)), ...B, ...A];
+}
+export function setSong(i, boss = false) { style = boss ? { ...BOSS, root: BOSS.root * [1, 0.94, 1.06, 0.9][i] || BOSS.root } : STYLES[i] || STYLES[0]; bossMode = boss; mel = compose(style); step = 0; }
+mel = compose(style);
+const freqOf = (st, deg, oct = 0) => { const sc = SCALES[st.scale], n = sc.length; const o = Math.floor(deg / n); return st.root * Math.pow(2, (sc[((deg % n) + n) % n] + 12 * (o + oct)) / 12); };
 function scheduleMusic() {
   if (!ctx) return;
-  const beat = song.beat * (bossMode ? 0.8 : 1);
+  const st = style, s16 = 60 / st.bpm / 4;
+  if (st.echo && !echoNode) { echoNode = ctx.createDelay(); echoNode.delayTime.value = s16 * 3; const fb = ctx.createGain(); fb.gain.value = 0.35; echoNode.connect(fb); fb.connect(echoNode); echoNode.connect(musicGain); }
   while (nextNote < ctx.currentTime + 0.3) {
-    const m = song.mel[step % song.mel.length];
-    if (m >= 0) tone(song.root * Math.pow(2, m / 12), beat * 0.9, song.wave, song.wave === 'square' ? 0.18 : 0.35, 1, nextNote - ctx.currentTime, musicGain);
-    if (step % 4 === 0) {
-      const b = song.bass[Math.floor(step / 4) % song.bass.length];
-      tone(song.root / 4 * Math.pow(2, b / 12), beat * 3.6, 'sine', 0.6, 1, nextNote - ctx.currentTime, musicGain);
-    }
-    if (bossMode && step % 2 === 0) tone(90, 0.06, 'square', 0.15, 0.5, nextNote - ctx.currentTime, musicGain);
-    nextNote += beat; step++;
+    const d = nextNote - ctx.currentTime, k = step % 16, bar = Math.floor(step / 16), chord = st.prog[bar % st.prog.length];
+    const sw = (st.swing && k % 2) ? s16 * st.swing * 4 : 0, dd = d + sw;
+    // drums
+    if (k === 0 || k === 8 || (st.heavy && (k === 6 || k === 11))) { tone(140, 0.16, 'sine', 0.7, 0.35, dd, musicGain); }
+    if (k === 4 || k === 12) noise(0.12, 0.28, 1800, dd, musicGain);
+    if (k % 2 === 0) noise(0.03, st.heavy ? 0.12 : 0.07, 7000, dd, musicGain, true);
+    // bass
+    if (k % 4 === 0) tone(freqOf(st, chord, -2) * (k === 4 || k === 12 ? 2 : 1), s16 * 3.2, st.heavy ? 'sawtooth' : 'triangle', 0.5, 1, dd, musicGain);
+    // pad at bar start
+    if (k === 0) [0, 2, 4].forEach((x) => tone(freqOf(st, chord + x, -1), s16 * 15, 'sine', 0.12, 1, dd, musicGain));
+    // arpeggio
+    if (k % 2 === 1 || st.heavy) { const x = [0, 2, 4, 7][(k >> (st.heavy ? 0 : 1)) % 4]; tone(freqOf(st, chord + x, 0), s16 * 0.9, st.arp, 0.06, 1, dd, musicGain); }
+    // melody
+    const m = mel[step % mel.length];
+    if (m !== null && m !== undefined) { tone(freqOf(st, m + (st.heavy ? 0 : 0), 1), s16 * 1.8, st.lead, st.lead === 'sine' ? 0.32 : st.lead === 'triangle' ? 0.3 : 0.12, 1, dd, musicGain); if (st.echo && echoNode) tone(freqOf(st, m, 1), s16 * 1.8, 'sine', 0.12, 1, dd, echoNode); }
+    nextNote += s16; step++;
   }
 }
 export function startMusic() {

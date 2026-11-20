@@ -5,7 +5,7 @@ const names = process.argv.slice(2);
 for (const name of names) for (const world of [0]) {
   LEVELS.push({ world, name: 'test', chunks: ['start', name, 'check', name, 'goal'] });
   const idx = LEVELS.length - 1;
-  for (const ch of ['wren', 'bobble']) {
+  for (const ch of ['wren', 'bobble', 'pip']) {
     let res = [];
     for (let trial = 0; trial < 6; trial++) {
       const g = new Game({ hud() {}, toast() {}, complete() {}, gameOver() {} });

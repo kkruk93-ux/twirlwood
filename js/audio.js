@@ -56,22 +56,34 @@ const SFX = {
   win: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.22, 'square', 0.16, 1, i * 0.11)),
   click: () => tone(660, 0.05, 'square', 0.1),
   crumble: () => noise(0.3, 0.2, 700),
+  switch: () => { [440, 660, 880].forEach((f, i) => tone(f, 0.1, 'triangle', 0.2, 1, i * 0.04)); noise(0.15, 0.15, 4000); },
+  swing: () => { noise(0.12, 0.25, 2500); tone(500, 0.1, 'triangle', 0.12, 0.6); },
+  bounce: () => tone(300, 0.25, 'sine', 0.3, 2.5),
+  life: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.15, 'square', 0.15, 1, i * 0.07)),
+  clank: () => { tone(900, 0.08, 'square', 0.15, 0.7); tone(1400, 0.1, 'triangle', 0.1); },
+  bat: () => tone(1200, 0.2, 'sawtooth', 0.06, 0.4),
 };
 export function sfx(name) { if (sfxOn && ctx && SFX[name]) try { SFX[name](); } catch (e) { /* ignore */ } }
 
-// Cheerful original loop (C major pentatonic), 8 bars.
-const MEL = [0, 4, 7, 9, 7, 4, 2, 4, 0, 2, 4, 7, 9, 12, 9, 7, 5, 9, 12, 9, 7, 4, 2, 0, 2, 4, 7, 4, 2, -1, 0, -1];
-const BASS = [0, 0, 5, 5, 7, 7, 0, 0];
+// Original loops, one per world (+ a faster boss variant).
+const SONGS = [
+  { mel: [0, 4, 7, 9, 7, 4, 2, 4, 0, 2, 4, 7, 9, 12, 9, 7, 5, 9, 12, 9, 7, 4, 2, 0, 2, 4, 7, 4, 2, -1, 0, -1], bass: [0, 0, 5, 5, 7, 7, 0, 0], root: 523.25, beat: 0.2, wave: 'triangle' },
+  { mel: [0, 3, 7, 10, 7, 3, 5, 7, 12, 10, 7, 5, 3, 5, 7, -1, 0, 7, 12, 15, 12, 10, 7, 5, 3, 2, 0, 2, 3, -1, -1, -1], bass: [0, 0, 8, 8, 5, 5, 7, 7], root: 440, beat: 0.24, wave: 'sine' },
+  { mel: [7, 9, 12, 14, 12, 9, 7, 4, 5, 7, 9, 12, 9, 7, 5, 2, 4, 7, 11, 12, 14, 12, 11, 7, 9, 7, 5, 4, 2, 4, 0, -1], bass: [0, 0, 9, 9, 5, 5, 7, 7], root: 587.33, beat: 0.18, wave: 'square' },
+];
+let song = SONGS[0], bossMode = false;
+export function setSong(i, boss = false) { song = SONGS[i] || SONGS[0]; bossMode = boss; }
 function scheduleMusic() {
   if (!ctx) return;
-  const beat = 0.2;
+  const beat = song.beat * (bossMode ? 0.8 : 1);
   while (nextNote < ctx.currentTime + 0.3) {
-    const m = MEL[step % MEL.length];
-    if (m >= 0) tone(523.25 * Math.pow(2, m / 12), beat * 0.9, 'triangle', 0.35, 1, nextNote - ctx.currentTime, musicGain);
+    const m = song.mel[step % song.mel.length];
+    if (m >= 0) tone(song.root * Math.pow(2, m / 12), beat * 0.9, song.wave, song.wave === 'square' ? 0.18 : 0.35, 1, nextNote - ctx.currentTime, musicGain);
     if (step % 4 === 0) {
-      const b = BASS[Math.floor(step / 4) % BASS.length];
-      tone(130.8 * Math.pow(2, b / 12), beat * 3.6, 'sine', 0.6, 1, nextNote - ctx.currentTime, musicGain);
+      const b = song.bass[Math.floor(step / 4) % song.bass.length];
+      tone(song.root / 4 * Math.pow(2, b / 12), beat * 3.6, 'sine', 0.6, 1, nextNote - ctx.currentTime, musicGain);
     }
+    if (bossMode && step % 2 === 0) tone(90, 0.06, 'square', 0.15, 0.5, nextNote - ctx.currentTime, musicGain);
     nextNote += beat; step++;
   }
 }

@@ -1,0 +1,2 @@
+three.js r187 (npm three@0.187.0), MIT License, see LICENSE.
+Files from https://cdn.jsdelivr.net/npm/three@0.187.0/build/ ; import path in three.module.min.js changed to ./three.core.min.js.

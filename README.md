@@ -4,17 +4,21 @@ An original, colorful fairy-tale platformer for phones and desktop browsers. Run
 
 **Play:** https://kkruk93-ux.github.io/twirlwood/
 
-## Prototype 0.1.0
-- Two heroes: **Wren** the acrobat (double jump, air dash) and **Bobble** the jester (glide, ground-pound).
-- One world, Lanternleaf Forest, with 3 levels: Sunny Glade, Mushroom Hollow, and Thornspire Bridge, which ends in a boss fight with the Bramblecrown.
-- Enemies: thornbug, puffshroom, wisp. Also spikes, springs, crates, moving and crumbling planks, checkpoints, hearts.
-- Touch controls (multitouch) and keyboard: arrows/A-D move, Space/Z/W jump, X/Shift/J action, Esc/P pause.
-- Progress, settings and the chosen hero are saved in localStorage. There are no ads, no purchases and no tracking.
+## Version 1.0.0
+- Low-poly 3D (three.js r187, vendored, MIT) with a PS1-style look: low-res rendering, optional vertex snapping, fog.
+- The camera follows the hero along a winding 3D path (CatmullRomCurve3) that turns, rises and drops. Movement stays on the path.
+- 3 worlds × 5 levels: Lanternleaf Forest, Glimmerfrost Caverns, Skyspire Castle. Each world ends with a boss (Bramblecrown, Frost Warden, Storm Rook).
+- Two switchable heroes: **Wren** (double jump, dash, backflip) and **Bobble** (glide, hat swing, ground-pound).
+- Enemies: thornbug, puffshroom, wisp, batling, bramble roller, crystal crab. Springs, crates, moving, vertical and crumbling planks, bouncy clouds, ice, upper/lower routes, secret alcoves, checkpoints, hearts, lives, 1-ups, 3 star gems and 3 stars per level, world map.
+- Controls: on-screen gamepad (analog stick + A/B/X/Y), Bluetooth gamepads (Gamepad API), keyboard.
+- Settings: graphics preset with auto-fallback, retro wobble, sound, music, vibration, shake, control size/opacity, left-handed layout.
+- No ads, no purchases, no tracking (monetization is a stub only).
 
 ## Development
 ```
 python3 -m http.server 4180   # then open http://127.0.0.1:4180/
-node tests/play.mjs screenshots  # headless bot playthrough + screenshots (needs Playwright)
+node tools/bot-check.mjs         # bot plays all 15 levels with both heroes (Node only)
+node tests/play.mjs screenshots  # headless WebGL run + screenshots (needs Playwright)
 python3 tools/make-icons.py      # regenerate icons
 ```
 
@@ -22,4 +26,4 @@ python3 tools/make-icons.py      # regenerate icons
 YouTube [@RoviHere](https://www.youtube.com/@RoviHere) · X [@RoviHere](https://x.com/RoviHere) · Suno https://suno.com/@kkruk93  
 Support (BTC): bc1qd05h6spuj8dqf9rs9fu4re9rh4q6k0gflfqum8
 
-Code is under the MIT license (see LICENSE). [Privacy policy](https://kkruk93-ux.github.io/twirlwood/privacy.html)
+Code is under the MIT license (see LICENSE). three.js is MIT (vendor/three/LICENSE). [Privacy policy](https://kkruk93-ux.github.io/twirlwood/privacy.html)

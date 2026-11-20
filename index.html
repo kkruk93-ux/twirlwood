@@ -7,64 +7,65 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Twirlwood">
-  <meta name="description" content="Twirlwood: a colorful fairy-tale platformer along a winding forest path. Run, jump, stomp and collect gems. Plays offline.">
+  <meta name="description" content="Twirlwood: a colorful low-poly 3D fairy-tale platformer along winding paths. Three worlds, two heroes, plays offline.">
   <title>Twirlwood</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./css/styles.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
 </head>
 <body>
   <canvas id="game" data-testid="canvas"></canvas>
 
-  <!-- HUD -->
   <div id="hud" class="hidden" data-testid="hud">
     <div class="hud-left">
+      <div id="hud-char" class="hud-char"></div>
       <div id="hearts" data-testid="hearts"></div>
+      <div class="hud-pill"><span class="ico life"></span>×<span id="hud-lives">5</span></div>
       <div class="hud-pill"><span class="ico coin"></span><span id="hud-coins" data-testid="hud-coins">0</span></div>
       <div class="hud-pill"><span class="ico gem"></span><span id="hud-gems" data-testid="hud-gems">0/0</span></div>
     </div>
     <div id="hud-level" class="hud-level"></div>
-    <button id="btn-pause" class="round-btn" type="button" aria-label="Pause" data-testid="pause">II</button>
   </div>
 
-  <!-- Touch controls -->
-  <div id="touch" class="hidden" data-testid="touch">
-    <div class="tbtn" data-k="left" id="t-left">◀</div>
-    <div class="tbtn" data-k="right" id="t-right">▶</div>
-    <div class="tbtn act" data-k="action" id="t-action">✦</div>
-    <div class="tbtn jump" data-k="jump" id="t-jump">▲</div>
+  <!-- Virtual gamepad -->
+  <div id="pad" class="hidden" data-testid="pad">
+    <div class="stick"><div class="knob"></div></div>
+    <div class="face">
+      <div class="pbtn y" data-k="switch" id="b-y">Y</div>
+      <div class="pbtn x" data-k="action" id="b-x">X</div>
+      <div class="pbtn b" data-k="special" id="b-b">B</div>
+      <div class="pbtn a" data-k="jump" id="b-a">A</div>
+    </div>
+    <button class="sysbtn" id="btn-pause" type="button" aria-label="Pause" data-testid="pause">❚❚</button>
   </div>
 
   <div id="toast" class="toast"></div>
 
-  <!-- Screens -->
   <section id="scr-title" class="screen" data-testid="scr-title">
     <h1 class="logo">Twirl<span>wood</span></h1>
     <p class="tag">A fairy-tale run along the winding path</p>
     <div class="menu">
-      <button class="btn big" data-go="select" data-testid="btn-play">Play</button>
+      <button class="btn big" data-go="map" data-testid="btn-play">Play</button>
       <button class="btn" data-go="settings">Settings</button>
       <button class="btn" data-go="about">About</button>
     </div>
     <p class="hint-rot">Turn your phone sideways for the best view</p>
   </section>
 
-  <section id="scr-select" class="screen dim hidden" data-testid="scr-select">
-    <h2>Choose your hero</h2>
-    <div class="chars">
-      <button class="char" data-char="wren" data-testid="char-wren">
-        <canvas width="120" height="120" data-portrait="wren"></canvas>
-        <b>Wren</b><small>Acrobat · Double jump · Air dash</small>
-      </button>
-      <button class="char" data-char="bobble" data-testid="char-bobble">
-        <canvas width="120" height="120" data-portrait="bobble"></canvas>
-        <b>Bobble</b><small>Jester · Glide · Ground-pound</small>
-      </button>
+  <section id="scr-map" class="screen dim hidden" data-testid="scr-map">
+    <div class="map-top">
+      <button class="btn small" data-go="title">◀</button>
+      <div class="tabs" id="world-tabs"></div>
+      <div class="heroes">
+        <button class="hero" data-char="wren" data-testid="char-wren"><canvas width="120" height="120" data-portrait="wren"></canvas><span>Wren</span></button>
+        <button class="hero" data-char="bobble" data-testid="char-bobble"><canvas width="120" height="120" data-portrait="bobble"></canvas><span>Bobble</span></button>
+      </div>
     </div>
-    <h2 class="sub">Lanternleaf Forest</h2>
-    <div id="levels" class="levels"></div>
-    <div class="menu row"><button class="btn" data-go="title">Back</button></div>
+    <h2 id="world-name"></h2>
+    <div class="map-wrap"><svg id="map-svg" viewBox="0 0 800 260" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <p class="map-info" id="map-info">Tip: press Y in a level to switch heroes.</p>
   </section>
 
   <section id="scr-pause" class="screen dim hidden" data-testid="scr-pause">
@@ -73,18 +74,36 @@
       <button class="btn big" id="btn-resume" data-testid="btn-resume">Resume</button>
       <button class="btn" id="btn-restart">Restart level</button>
       <button class="btn" data-go="settings">Settings</button>
+      <button class="btn" id="btn-help">Controls</button>
       <button class="btn" id="btn-quit">Quit to map</button>
     </div>
+  </section>
+
+  <section id="scr-help" class="screen dim hidden">
+    <h2>Controls</h2>
+    <table class="help">
+      <tr><th></th><th>Wren (acrobat)</th><th>Bobble (jester)</th></tr>
+      <tr><td><b class="k a">A</b></td><td>Jump, again in the air: double jump</td><td>Jump, hold in the air: glide</td></tr>
+      <tr><td><b class="k x">X</b></td><td>Dash (breaks crates, hits enemies)</td><td>Hat swing on the ground, pound in the air</td></tr>
+      <tr><td><b class="k b">B</b></td><td>Backflip high jump</td><td>Ground-pound</td></tr>
+      <tr><td><b class="k y">Y</b></td><td colspan="2">Switch hero</td></tr>
+    </table>
+    <p class="small-note">Keyboard: arrows or A/D move, Space/Z jump, X attack, C special, V switch, Esc pause. Bluetooth gamepads work too.</p>
+    <div class="menu row"><button class="btn" id="btn-help-back">Back</button></div>
   </section>
 
   <section id="scr-settings" class="screen dim hidden" data-testid="scr-settings">
     <h2>Settings</h2>
     <div class="settings">
+      <label>Graphics <select id="set-quality"><option value="low">Low (fast)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+      <label><input type="checkbox" id="set-psx"> Retro wobble (vertex snap)</label>
       <label><input type="checkbox" id="set-sfx"> Sound effects</label>
       <label><input type="checkbox" id="set-music"> Music</label>
       <label><input type="checkbox" id="set-vibe"> Vibration</label>
       <label><input type="checkbox" id="set-shake"> Screen shake</label>
-      <label>Button size <input type="range" id="set-size" min="70" max="130" step="5"></label>
+      <label>Control size <input type="range" id="set-size" min="70" max="140" step="5"></label>
+      <label>Control opacity <input type="range" id="set-opacity" min="20" max="100" step="5"></label>
+      <label><input type="checkbox" id="set-invert"> Left-handed (swap stick and buttons)</label>
       <button class="btn small danger" id="btn-reset">Reset progress</button>
     </div>
     <div class="menu row"><button class="btn" id="btn-settings-back">Back</button></div>
@@ -92,20 +111,21 @@
 
   <section id="scr-about" class="screen dim hidden" data-testid="scr-about">
     <h2>About Twirlwood</h2>
-    <p class="about-text">An original fairy-tale platformer by Rovi Here. Made with plain web code; all art and sound are generated in code.</p>
+    <p class="about-text">An original fairy-tale platformer by Rovi Here. Built with web code and three.js; all models, art and sound are made in code.</p>
     <ul class="links">
       <li><a href="https://www.youtube.com/@RoviHere" target="_blank" rel="noopener">YouTube @RoviHere</a></li>
       <li><a href="https://x.com/RoviHere" target="_blank" rel="noopener">X @RoviHere</a></li>
       <li><a href="https://suno.com/@kkruk93" target="_blank" rel="noopener">Suno https://suno.com/@kkruk93</a></li>
       <li class="btc">Support (BTC): <code>bc1qd05h6spuj8dqf9rs9fu4re9rh4q6k0gflfqum8</code></li>
-      <li><a href="./privacy.html">Privacy policy</a></li>
+      <li><a href="./privacy.html">Privacy policy</a> · three.js (MIT)</li>
     </ul>
-    <p class="ver">Version 0.1.0 (prototype)</p>
+    <p class="ver">Version 1.0.0</p>
     <div class="menu row"><button class="btn" data-go="title">Back</button></div>
   </section>
 
   <section id="scr-done" class="screen dim hidden" data-testid="scr-done">
     <h2 id="done-title">Level clear!</h2>
+    <div id="done-stars" class="stars"></div>
     <div id="done-stats" class="done-stats"></div>
     <div class="menu row">
       <button class="btn" id="btn-done-map">Map</button>
@@ -114,6 +134,13 @@
     </div>
   </section>
 
+  <section id="scr-over" class="screen dim hidden" data-testid="scr-over">
+    <h2>Out of lives</h2>
+    <p>Your lives are refilled. Try the level again!</p>
+    <div class="menu row"><button class="btn" id="btn-over-map">Map</button><button class="btn big" id="btn-over-retry">Retry</button></div>
+  </section>
+
+  <div id="loading" class="loading">Loading…</div>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

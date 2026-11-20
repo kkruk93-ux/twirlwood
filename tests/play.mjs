@@ -13,12 +13,15 @@ page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') 
 page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto(URL); await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}/01-title.png` });
+await page.evaluate(() => window.__tw.intro()); await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}/00-intro.png` });
+await page.click('#btn-intro-skip'); await page.waitForTimeout(300);
 await page.evaluate(() => window.__tw.unlockAll());
 await page.click('[data-testid=btn-play]'); await page.waitForTimeout(500);
 await page.screenshot({ path: `${out}/02-map.png` });
 const results = [];
-for (const ch of ['wren', 'bobble']) {
-  for (let i = 0; i < 15; i++) {
+for (const ch of (process.env.CHARS || 'wren,bobble,pip').split(',')) {
+  for (let i = 0; i < 20; i++) {
     if (only && !only.includes(i)) continue;
     await page.evaluate(([i, ch]) => { window.__tw.start(i, ch); window.__tw.manual(true); }, [i, ch]);
     let info;
@@ -40,6 +43,15 @@ if (!process.env.NOSHOTS) {
   await shot(6, 2600, '04-caverns', 'bobble');
   await shot(11, 1500, '05-castle', 'wren');
   await shot(4, 4300, '06-boss', 'bobble');
+  await shot(16, 1800, '08-mines', 'pip');
+  await shot(19, 4300, '09-golem', 'wren');
+  await page.evaluate(() => { window.__tw.setData({ bank: 420 }); window.__tw.manual(false); });
+  await page.evaluate(() => { document.querySelector('[data-go=shop]').click(); }); await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/10-shop.png` });
+  await page.evaluate(() => { document.querySelector('#scr-shop [data-go=title]').click(); document.querySelector('[data-go=ach]').click(); }); await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/11-ach.png` });
+  await page.evaluate(() => { document.querySelector('#scr-ach [data-go=title]').click(); document.querySelector('#btn-play').click(); }); await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/12-map.png` });
   // real touch input: hold the analog stick right, then press A
   await page.evaluate(() => window.__tw.start(0, 'wren')); await page.waitForTimeout(400);
   const x0 = await page.evaluate(() => window.__tw.game.p.x);

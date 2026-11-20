@@ -79,3 +79,24 @@ html,body{background:#000}
 .hint-rot{display:none;opacity:.8;font-size:14px}
 @media (orientation:portrait){.hint-rot{display:block}.settings{grid-template-columns:1fr}.map-top{flex-wrap:wrap;justify-content:center}}
 @media (max-height:420px){h2{font-size:20px}.screen{gap:6px}.btn{padding:6px 14px;font-size:15px}.btn.big{font-size:18px}.settings{font-size:14px;gap:5px 14px}}
+
+/* 2.0 screens */
+.timer{font-size:17px}
+.hero.locked{opacity:.45;filter:grayscale(1)}
+.tab.trial.sel{background:#ffd25a;color:#4a1d10}
+.bank{font-size:16px;color:#ffe066;margin-left:8px}
+.shop-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(860px,96vw)}
+.shop-col{background:rgba(255,255,255,.1);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.shop-col h3{margin:0;font-size:16px}
+.cos{display:flex;align-items:center;gap:8px;font:inherit;color:#fff;background:rgba(0,0,0,.25);border:2px solid transparent;border-radius:10px;padding:5px 8px;cursor:pointer;text-align:left}
+.cos.sel{border-color:#ffe066}.cos .sw{width:26px;height:26px;border-radius:50%;flex:none;border:2px solid #fff}
+.cos .pr{margin-left:auto;font-weight:700;color:#ffe066;font-size:13px}
+.ach-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:min(820px,96vw)}
+.ach{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.08);border-radius:10px;padding:6px 10px;text-align:left;opacity:.5}
+.ach.on{opacity:1;background:rgba(255,224,102,.18)}.ach b{display:block}.ach small{opacity:.8}
+.done-extra{font-size:15px;min-height:1em}.medal{font-size:26px}
+.intro{background:linear-gradient(transparent 55%,rgba(10,6,30,.85));justify-content:flex-end;padding-bottom:28px}
+.intro-text{font-size:clamp(17px,3.2vw,26px);font-weight:700;max-width:760px;text-shadow:0 2px 4px #000;transition:opacity .6s;margin:0 0 10px}
+.intro-bar{display:flex;gap:14px;align-items:center}
+#intro-dots{letter-spacing:6px;color:#ffe066}
+@media (max-height:430px){.shop-list{grid-template-columns:repeat(3,minmax(0,1fr))}.cos{padding:3px 6px}.ach-list{gap:4px}.ach{padding:3px 8px;font-size:13px}}

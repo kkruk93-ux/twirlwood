@@ -1,5 +1,7 @@
 // Input: on-screen virtual gamepad (analog stick + A/B/X/Y), a real gamepad via
 // the Gamepad API, and keyboard. Multitouch; each pointer is tracked separately.
+let hapticOn = false;
+const buzz = (ms) => { if (hapticOn) try { navigator.vibrate?.(ms); } catch (e) { /* ignore */ } };
 export function createInput(padEl) {
   const keys = new Set();
   const KEYMAP = {
@@ -33,7 +35,7 @@ export function createInput(padEl) {
   padEl.addEventListener('pointerdown', (e) => {
     e.preventDefault(); padEl.setPointerCapture?.(e.pointerId);
     const b = btnAt(e.clientX, e.clientY);
-    if (b) { touches.set(e.pointerId, b); return; }
+    if (b) { touches.set(e.pointerId, b); buzz(8); return; }
     if (stick.id === null && stickZone(e.clientX)) {
       stick.id = e.pointerId; stick.cx = e.clientX; stick.cy = e.clientY; stick.dx = stick.dy = 0;
       const r = stickEl.getBoundingClientRect(); stickEl.style.left = `${e.clientX - r.width / 2}px`; stickEl.style.top = `${e.clientY - r.height / 2}px`; stickEl.classList.add('active');
@@ -58,6 +60,7 @@ export function createInput(padEl) {
   let padPausePrev = false;
   return {
     state, virtual,
+    set haptic(v) { hapticOn = !!v; }, get haptic() { return hapticOn; },
     poll() {
       const held = { left: keys.has('left'), right: keys.has('right'), jump: keys.has('jump'), action: keys.has('action'), special: keys.has('special'), switch: keys.has('switch') };
       let analog = 1;

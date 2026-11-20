@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Twirlwood">
-  <meta name="description" content="Twirlwood: a colorful low-poly 3D fairy-tale platformer along winding paths. Three worlds, two heroes, plays offline.">
+  <meta name="description" content="Twirlwood: a colorful low-poly 3D fairy-tale platformer along winding paths. Four worlds, three heroes, plays offline.">
   <title>Twirlwood</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
@@ -26,6 +26,7 @@
     <div class="hud-right">
       <div class="hud-row"><span class="ico coin"></span><span class="num" id="hud-coins" data-testid="hud-coins">0</span><span class="ico gem"></span><span class="num" id="hud-gems" data-testid="hud-gems">0/0</span></div>
       <div id="hud-level" class="hud-level"></div>
+      <div id="hud-timer" class="num timer hidden">0:00.0</div>
     </div>
   </div>
 
@@ -47,9 +48,9 @@
     <h1 class="logo">Twirl<span>wood</span></h1>
     <p class="tag">A fairy-tale run along the winding path</p>
     <div class="menu">
-      <button class="btn big" data-go="map" data-testid="btn-play">Play</button>
-      <button class="btn" data-go="settings">Settings</button>
-      <button class="btn" data-go="about">About</button>
+      <button class="btn big" id="btn-play" data-testid="btn-play">Play</button>
+      <div class="menu row"><button class="btn small" data-go="shop" data-testid="btn-shop">Costumes</button><button class="btn small" data-go="ach">Achievements</button><button class="btn small" id="btn-story">Story</button></div>
+      <div class="menu row"><button class="btn small" data-go="settings">Settings</button><button class="btn small" data-go="about">About</button></div>
     </div>
     <p class="hint-rot">Turn your phone sideways for the best view</p>
   </section>
@@ -61,7 +62,9 @@
       <div class="heroes">
         <button class="hero" data-char="wren" data-testid="char-wren"><canvas width="120" height="120" data-portrait="wren"></canvas><span>Wren</span></button>
         <button class="hero" data-char="bobble" data-testid="char-bobble"><canvas width="120" height="120" data-portrait="bobble"></canvas><span>Bobble</span></button>
+        <button class="hero" data-char="pip" data-testid="char-pip"><canvas width="120" height="120" data-portrait="pip"></canvas><span>Pip</span></button>
       </div>
+      <button class="tab trial" id="btn-trial" data-testid="btn-trial">⏱ Trial</button>
     </div>
     <h2 id="world-name"></h2>
     <div class="map-wrap"><svg id="map-svg" viewBox="0 0 800 260" preserveAspectRatio="xMidYMid meet"></svg></div>
@@ -82,11 +85,11 @@
   <section id="scr-help" class="screen dim hidden">
     <h2>Controls</h2>
     <table class="help">
-      <tr><th></th><th>Wren (acrobat)</th><th>Bobble (jester)</th></tr>
-      <tr><td><b class="k a">A</b></td><td>Jump, again in the air: double jump</td><td>Jump, hold in the air: glide</td></tr>
-      <tr><td><b class="k x">X</b></td><td>Dash (breaks crates, hits enemies)</td><td>Hat swing on the ground, pound in the air</td></tr>
-      <tr><td><b class="k b">B</b></td><td>Backflip high jump</td><td>Ground-pound</td></tr>
-      <tr><td><b class="k y">Y</b></td><td colspan="2">Switch hero</td></tr>
+      <tr><th></th><th>Wren (acrobat)</th><th>Bobble (jester)</th><th>Pip (scout)</th></tr>
+      <tr><td><b class="k a">A</b></td><td>Jump, again in the air: double jump</td><td>Jump, hold in the air: glide</td><td>Jump (fastest runner)</td></tr>
+      <tr><td><b class="k x">X</b></td><td>Dash (breaks crates, hits enemies)</td><td>Hat swing on the ground, pound in the air</td><td>Tail spin (also a short hover)</td></tr>
+      <tr><td><b class="k b">B</b></td><td>Backflip high jump</td><td>Ground-pound</td><td>Super jump, in the air: spin hover</td></tr>
+      <tr><td><b class="k y">Y</b></td><td colspan="3">Switch hero</td></tr>
     </table>
     <p class="small-note">Keyboard: arrows or A/D move, Space/Z jump, X attack, C special, V switch, Esc pause. Bluetooth gamepads work too.</p>
     <div class="menu row"><button class="btn" id="btn-help-back">Back</button></div>
@@ -119,7 +122,7 @@
       <li class="btc">Support (BTC): <code>bc1qd05h6spuj8dqf9rs9fu4re9rh4q6k0gflfqum8</code></li>
       <li><a href="./privacy.html">Privacy policy</a> · three.js (MIT)</li>
     </ul>
-    <p class="ver">Version 1.2.0</p>
+    <p class="ver">Version 2.0.0</p>
     <div class="menu row"><button class="btn" data-go="title">Back</button></div>
   </section>
 
@@ -127,6 +130,7 @@
     <h2 id="done-title">Level clear!</h2>
     <div id="done-stars" class="stars"></div>
     <div id="done-stats" class="done-stats"></div>
+    <div id="done-extra" class="done-extra"></div>
     <div class="menu row">
       <button class="btn" id="btn-done-map">Map</button>
       <button class="btn" id="btn-done-retry">Retry</button>
@@ -138,6 +142,24 @@
     <h2>Out of lives</h2>
     <p>Your lives are refilled. Try the level again!</p>
     <div class="menu row"><button class="btn" id="btn-over-map">Map</button><button class="btn big" id="btn-over-retry">Retry</button></div>
+  </section>
+
+  <section id="scr-shop" class="screen dim hidden" data-testid="scr-shop">
+    <h2>Costumes <span class="bank">🪙 <b id="shop-bank">0</b></span></h2>
+    <p class="small-note">Spend coins you collect in levels. Costumes are just for looks.</p>
+    <div id="shop-list" class="shop-list"></div>
+    <div class="menu row"><button class="btn" data-go="title">Back</button></div>
+  </section>
+
+  <section id="scr-ach" class="screen dim hidden" data-testid="scr-ach">
+    <h2>Achievements <span class="bank" id="ach-count"></span></h2>
+    <div id="ach-list" class="ach-list"></div>
+    <div class="menu row"><button class="btn" data-go="title">Back</button></div>
+  </section>
+
+  <section id="scr-intro" class="screen intro hidden" data-testid="scr-intro">
+    <p id="intro-text" class="intro-text"></p>
+    <div class="intro-bar"><span id="intro-dots"></span><button class="btn small" id="btn-intro-skip">Skip</button></div>
   </section>
 
   <div id="loading" class="loading">Loading…</div>

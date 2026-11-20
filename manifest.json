@@ -1,7 +1,7 @@
 {
   "name": "Twirlwood",
   "short_name": "Twirlwood",
-  "description": "A colorful low-poly 3D fairy-tale platformer along winding paths. Three worlds, two heroes, plays offline.",
+  "description": "A colorful low-poly 3D fairy-tale platformer along winding paths. Four worlds, three heroes, bosses, costumes and time trials. Plays offline.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

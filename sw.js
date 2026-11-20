@@ -1,6 +1,6 @@
-const CACHE = 'twirlwood-v5';
+const CACHE = 'twirlwood-v6';
 const ASSETS = ['./', './index.html', './privacy.html', './manifest.json', './css/styles.css',
-  './js/main.js', './js/game.js', './js/levels.js', './js/world3d.js', './js/models.js', './js/art.js', './js/audio.js', './js/input.js', './js/storage.js', './js/monetization.js',
+  './js/main.js', './js/game.js', './js/levels.js', './js/world3d.js', './js/models.js', './js/art.js', './js/audio.js', './js/input.js', './js/storage.js', './js/monetization.js', './js/meta.js',
   './vendor/three/three.module.min.js', './vendor/three/three.core.min.js',
   './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())));

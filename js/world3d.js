@@ -2,7 +2,7 @@
 // draws low-poly scenery, characters and effects with a PS1-like look.
 import * as THREE from 'three';
 import { T, ROWS } from './levels.js';
-import { makeWren, makeBobble, animateHero, makeEnemy, makeBoss, makeCoin, makeGem, makeHeart, makeLife, mat, patchPSX, setSnap, setTime, meshOf, box, ico, cone, cyl } from './models.js';
+import { makeWren, makeBobble, makePip, withCostume, animateHero, makeEnemy, makeBoss, makeCoin, makeGem, makeHeart, makeLife, mat, patchPSX, setSnap, setTime, meshOf, box, ico, cone, cyl } from './models.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const D = 1.0;          // half width of the path
@@ -97,6 +97,14 @@ export class World3D {
       for (let j = 0; j < S; j++) { if (j % 8 === 7) { x.fillStyle = '#' + B.clone().multiplyScalar(0.55).getHexString(); x.fillRect(0, j, S, 1); continue; }
         for (let i = 0; i < S; i++) if (Math.sin(i * 0.35 + j * 1.7 + (j >> 3) * 2) > 0.85) px(i, j, B, 0.82); }
       for (let row = 0; row < 4; row++) { px(2, row * 8 + 3, new THREE.Color(0x333333)); px(29, row * 8 + 3, new THREE.Color(0x333333)); }
+    } else if (kind === 'conv') { // metal belt with chevrons
+      fill(B, 0.1); x.fillStyle = '#' + B.clone().multiplyScalar(0.5).getHexString();
+      for (let k = 0; k < 2; k++) for (let j = 0; j < 12; j++) { x.fillRect(k * 16 + 4 + j * 0.5, 10 + j, 3, 1); x.fillRect(k * 16 + 4 + j * 0.5, 22 - j, 3, 1); }
+      x.fillStyle = '#ffd23a'; x.fillRect(0, 0, S, 2); x.fillRect(0, 30, S, 2);
+    } else if (kind === 'lava') {
+      fill(B, 0.15);
+      for (let n = 0; n < 40; n++) { const i = r() * S | 0, j = r() * S | 0; px(i, j, new THREE.Color(0xffe066)); px((i + 1) & 31, j, new THREE.Color(0xffb030)); }
+      for (let n = 0; n < 20; n++) px(r() * S | 0, r() * S | 0, B, 0.5);
     } else if (kind === 'water') { // vertical streaks for waterfalls
       fill(B, 0.1);
       for (let i = 0; i < S; i++) { const o = r() * S | 0, l = 4 + (r() * 10 | 0); for (let k = 0; k < l; k++) px(i, (o + k) % S, new THREE.Color(0xffffff), 0.9); }
@@ -107,7 +115,8 @@ export class World3D {
   panorama(w) {
     const W = 2048, H = 512, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
     const r = rng(w.music * 101 + 7), TAU = Math.PI * 2;
-    const P = w.cave ? { sky: ['#070b22', '#1e2a66', '#33468a'], m: ['#3c4c96', '#2a3678', '#1c2558'], hi: '#8fb0ff', f: ['#1a2a5a', '#0f1838'], snow: '#bfe8ff' }
+    const P = w.mine ? { sky: ['#12060e', '#4a1420', '#c84a1a'], m: ['#3a1a24', '#2a121a', '#1a0a10'], hi: '#ff6a2a', f: ['#1a0c10', '#0e0608'], snow: '#ff8a3a' }
+      : w.cave ? { sky: ['#070b22', '#1e2a66', '#33468a'], m: ['#3c4c96', '#2a3678', '#1c2558'], hi: '#8fb0ff', f: ['#1a2a5a', '#0f1838'], snow: '#bfe8ff' }
       : w.sky3 ? { sky: ['#ff7ab8', '#ffb8c8', '#ffe8c0'], m: ['#f4d8ff', '#e0b0f0', '#c088d8'], hi: '#ffffff', f: ['#b070c8', '#8a50a8'], snow: '#ffffff' }
       : { sky: ['#1f8cf0', '#5cc0ff', '#c8f0ff'], m: ['#c0b0f0', '#8a78d8', '#6a58b8'], hi: '#f0eaff', f: ['#1f7a3e', '#0f4a26'], snow: '#ffffff' };
     // horizon at row ~ (45+0... ) : cylinder spans y -50..140 around the camera; horizon (y=0) is at 74% from the top
@@ -117,7 +126,8 @@ export class World3D {
     // periodic ridge function (seamless wrap)
     const ridge = (amp, base, fr) => { const ph = [r() * TAU, r() * TAU, r() * TAU, r() * TAU]; return (i) => { const t = i / W * TAU; return base - amp * (0.5 * Math.sin(t * fr[0] + ph[0]) + 0.3 * Math.sin(t * fr[1] + ph[1]) + 0.2 * Math.abs(Math.sin(t * fr[2] + ph[2])) + 0.12 * Math.sin(t * fr[3] + ph[3])); }; };
     // clouds / streaks
-    if (!w.cave) for (let k = 0; k < 26; k++) { const cx = r() * W, cy = r() * hz * 0.6, cw = 60 + r() * 160; x.fillStyle = `rgba(255,255,255,${0.35 + r() * 0.4})`;
+    if (w.mine) for (let k = 0; k < 220; k++) { x.fillStyle = r() < 0.5 ? 'rgba(255,140,40,.8)' : 'rgba(255,220,120,.6)'; x.fillRect(r() * W | 0, r() * hz | 0, 2, 2); }
+    else if (!w.cave) for (let k = 0; k < 26; k++) { const cx = r() * W, cy = r() * hz * 0.6, cw = 60 + r() * 160; x.fillStyle = `rgba(255,255,255,${0.35 + r() * 0.4})`;
       for (let j = 0; j < 5; j++) { x.beginPath(); x.ellipse((cx + j * cw * 0.22) % W, cy + r() * 8, cw * 0.25, 9 + r() * 10, 0, 0, TAU); x.fill(); } }
     else for (let k = 0; k < 140; k++) { x.fillStyle = r() < 0.5 ? '#8ff0ff' : '#d5b4ff'; x.fillRect(r() * W | 0, r() * hz | 0, 2, 2); }
     // mountain ranges with lit and shaded faces
@@ -129,6 +139,7 @@ export class World3D {
         const lit = Math.max(-1, Math.min(1, -sl / 3));
         const cc = col.clone().lerp(lit > 0 ? hi : new THREE.Color(0x201040), Math.abs(lit) * (lit > 0 ? 0.35 : 0.25));
         x.fillStyle = '#' + cc.getHexString(); x.fillRect(i, y, 2, H - y);
+        if (w.mine && li === 0 && r() < 0.05) { x.fillStyle = 'rgba(255,120,30,.8)'; x.fillRect(i, y + 4, 2, 40 + r() * 80); }
         if (li === 0 && !w.sky3 && y < base - amp * 0.35) { x.fillStyle = '#' + sn.clone().lerp(col, lit > 0 ? 0 : 0.35).getHexString(); x.fillRect(i, y, 2, Math.max(3, (base - amp * 0.35 - y) * 0.6)); }
         if (r() < 0.06) { x.fillStyle = 'rgba(0,0,0,.12)'; x.fillRect(i, y + 6 + r() * 40, 2, 10 + r() * 30); }
       }
@@ -151,6 +162,42 @@ export class World3D {
     const hzG = x.createLinearGradient(0, hz - 60, 0, H); hzG.addColorStop(0, 'rgba(255,255,255,0)'); hzG.addColorStop(1, '#' + new THREE.Color(w.fog).getHexString());
     x.fillStyle = hzG; x.fillRect(0, hz - 60, W, H);
     const t = this.texOf(c); t.wrapT = THREE.ClampToEdgeWrapping; return t;
+  }
+
+  // Grayscale detail textures (tinted by vertex colour) and alpha billboards, painted in code.
+  detailTex(kind) {
+    this._dt = this._dt || {}; if (this._dt[kind]) return this._dt[kind];
+    const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), r = rng(kind.length * 131 + 9);
+    const g = (v, a = 1) => `rgba(${v},${v},${v},${a})`;
+    x.fillStyle = g(215); x.fillRect(0, 0, S, S);
+    if (kind === 'bark') { for (let i = 0; i < 60; i++) { const xx = r() * S, w = 1 + r() * 3; x.fillStyle = g(r() < 0.6 ? 120 + r() * 50 : 250, 0.8); x.fillRect(xx, 0, w, S); }
+      for (let i = 0; i < 20; i++) { x.fillStyle = g(90, 0.8); x.fillRect(r() * S, r() * S, 2 + r() * 4, 2); } }
+    else if (kind === 'needle') { for (let i = 0; i < 260; i++) { const xx = r() * S, yy = r() * S, l = 3 + r() * 5, v = r() < 0.5 ? 120 + r() * 40 : 240 + r() * 15; x.strokeStyle = g(v | 0); x.lineWidth = 1;
+        x.beginPath(); x.moveTo(xx, yy); x.lineTo(xx - l * 0.6, yy + l); x.moveTo(xx, yy); x.lineTo(xx + l * 0.6, yy + l); x.stroke(); } }
+    else if (kind === 'leaf') { for (let i = 0; i < 140; i++) { const v = r() < 0.5 ? 130 + r() * 40 : 245; x.fillStyle = g(v | 0); x.beginPath(); x.ellipse(r() * S, r() * S, 2 + r() * 4, 1.5 + r() * 3, r() * 3, 0, 6.3); x.fill(); } }
+    else if (kind === 'rock') { for (let i = 0; i < 900; i++) { const v = 150 + r() * 100 | 0; x.fillStyle = g(v); x.fillRect(r() * S | 0, r() * S | 0, 2, 2); }
+      x.strokeStyle = g(90); x.lineWidth = 1; for (let i = 0; i < 9; i++) { let xx = r() * S, yy = r() * S; x.beginPath(); x.moveTo(xx, yy); for (let k = 0; k < 5; k++) { xx += (r() - 0.5) * 14; yy += r() * 10; x.lineTo(xx, yy); } x.stroke(); } }
+    else if (kind === 'brick') { x.fillStyle = g(120); for (let row = 0; row < 8; row++) { x.fillRect(0, row * 8 + 7, S, 1); for (let k = 0; k < 5; k++) x.fillRect(((row % 2) * 6 + k * 13) % S, row * 8, 1, 7); }
+      for (let i = 0; i < 300; i++) { x.fillStyle = g(180 + r() * 70 | 0); x.fillRect(r() * S | 0, r() * S | 0, 1, 1); } }
+    const t = this.texOf(c); t.repeat.set(2, 2); return (this._dt[kind] = t);
+  }
+  cardTex(kind) {
+    this._ct = this._ct || {}; if (this._ct[kind]) return this._ct[kind];
+    const W = 64, H = kind === 'pinecard' ? 128 : 64, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), r = rng(kind.length * 71 + 3);
+    if (kind === 'fern' || kind === 'drygrass' || kind === 'iceblade') {
+      const cols = kind === 'fern' ? ['#2f8a3a', '#4fb84a', '#8fe070', '#1f6a2e'] : kind === 'drygrass' ? ['#8a6a3a', '#b08a4a', '#d0a860', '#5a4028'] : ['#8fd8ff', '#bff0ff', '#ffffff', '#5a8ad0'];
+      for (let i = 0; i < 26; i++) { const bx = 8 + r() * 48, h = 24 + r() * 38, lean = (r() - 0.5) * 34; x.strokeStyle = cols[i % 4]; x.lineWidth = kind === 'fern' ? 3 : 2;
+        x.beginPath(); x.moveTo(bx, H); x.quadraticCurveTo(bx + lean * 0.3, H - h * 0.6, bx + lean, H - h); x.stroke();
+        if (kind === 'fern') for (let k = 1; k < 6; k++) { const t = k / 6, px = bx + lean * t * t, py = H - h * t; x.beginPath(); x.moveTo(px, py); x.lineTo(px - 6 * (1 - t), py - 3); x.moveTo(px, py); x.lineTo(px + 6 * (1 - t), py - 3); x.stroke(); } }
+      if (kind === 'fern') for (let i = 0; i < 5; i++) { x.fillStyle = ['#ffe066', '#ff7a9a', '#ffffff'][i % 3]; x.fillRect(10 + r() * 44, 20 + r() * 24, 3, 3); }
+    } else if (kind === 'pinecard') { // painted distant pine
+      x.fillStyle = '#3a2a1e'; x.fillRect(29, 100, 6, 28);
+      for (let t = 0; t < 7; t++) { const y = 104 - t * 14, w = 30 - t * 3.6; x.fillStyle = t % 2 ? '#1c5a30' : '#246a38';
+        x.beginPath(); x.moveTo(32 - w, y); x.lineTo(32, y - 26); x.lineTo(32 + w, y); x.closePath(); x.fill();
+        x.fillStyle = 'rgba(160,240,140,.35)'; x.beginPath(); x.moveTo(32 - w * 0.2, y - 4); x.lineTo(32, y - 24); x.lineTo(32 - w * 0.75, y - 2); x.fill();
+        x.fillStyle = 'rgba(0,30,10,.35)'; for (let k = 0; k < 6; k++) x.fillRect(32 + r() * w * 0.8, y - 8 - r() * 10, 3, 2); }
+    }
+    const t = this.texOf(c, false); return (this._ct[kind] = t);
   }
 
   // ---------- path ----------
@@ -217,9 +264,9 @@ export class World3D {
     this.g = game; const w = game.world;
     this.buildPath(game.W + 10, game.levelIndex + 1);
     const fogCol = new THREE.Color(w.fog);
-    this.scene.fog = new THREE.Fog(fogCol, w.cave ? 14 : 26, w.cave ? 75 : 125);
+    this.scene.fog = new THREE.Fog(fogCol, w.cave || w.mine ? 16 : 26, w.cave ? 75 : w.mine ? 95 : 125);
     this.renderer.setClearColor(fogCol);
-    this.hemi.color.set(w.cave ? 0xbfd8ff : 0xffffff); this.hemi.groundColor.set(w.cave ? 0x303060 : 0x6a5a8a);
+    this.hemi.color.set(w.cave ? 0xbfd8ff : w.mine ? 0xffc0a0 : 0xffffff); this.hemi.groundColor.set(w.cave ? 0x303060 : w.mine ? 0x601a10 : 0x6a5a8a);
     this.hemi.intensity = w.cave ? 1.3 : 1.6;
     this.makeSky(w);
     this.buildTerrain(game);
@@ -245,14 +292,14 @@ export class World3D {
     // painted panorama backdrop (procedural, original): rides with the camera like a distant matte painting
     const pan = new THREE.Mesh(new THREE.CylinderGeometry(190, 190, 190, 48, 1, true), new THREE.MeshBasicMaterial({ map: this.panorama(w), side: THREE.BackSide, fog: false, depthWrite: false }));
     pan.userData.own = true; pan.position.y = 45; pan.renderOrder = -1; this.sky.add(pan);
-    if (!w.cave) {
+    if (!w.cave && !w.mine) {
       const sun = new THREE.Mesh(new THREE.CircleGeometry(12, 10), new THREE.MeshBasicMaterial({ color: w.sky3 ? 0xfff4d0 : 0xfffbe0, fog: false }));
       sun.userData.own = true; this.sunDisc = sun; this.level.add(sun);
     } else this.sunDisc = null;
   }
 
   buildTerrain(game) {
-    const w = game.world, B = { top: [[], [], []], side: [[], [], []] }; let pos, col, uv;
+    const w = game.world, B = { top: [[], [], []], side: [[], [], []], conv: [[], [], []], lava: [[], [], []] }; let pos, col, uv;
     const use = (k) => { [pos, col, uv] = B[k]; };
     const cGrass = new THREE.Color(0xffffff), cDirt = new THREE.Color(0xf2f2f2), cDirt2 = new THREE.Color(0x707070), cIce = new THREE.Color(0xd8f4ff);
     const fa = { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() }, fb = { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() };
@@ -262,19 +309,20 @@ export class World3D {
       col.push(ca.r, ca.g, ca.b, ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, cb.r, cb.g, cb.b);
       uv.push(uvs[0], uvs[1], uvs[2], uvs[3], uvs[4], uvs[5], uvs[0], uvs[1], uvs[4], uvs[5], uvs[6], uvs[7]);
     };
-    const isS = (cx, cy) => { const t = game.tile(cx, cy); return t === 1 || t === 5; };
+    const isS = (cx, cy) => { const t = game.tile(cx, cy); return t === 1 || t === 5 || t === 8; };
     const deep = w.sky3 ? -3 : -9;
     for (let cx = 0; cx < game.W; cx++) {
       this.frame(cx + 4, fa); this.frame(cx + 5, fb);
+      for (let cy = 0; cy < ROWS; cy++) if (game.tile(cx, cy) === 7 && game.tile(cx, cy - 1) !== 7) { const h = 10 - cy - 0.3; use('lava'); const wc = new THREE.Color(0xffffff); quad(P(fa, h, D + 0.3), P(fb, h, D + 0.3), P(fb, h, -D - 0.3), P(fa, h, -D - 0.3), wc, wc, [cx, 0, cx + 1, 0, cx + 1, 1, cx, 1]); }
       let cy = 0;
       while (cy < ROWS) {
         if (!isS(cx, cy)) { cy++; continue; }
         const r0 = cy; while (cy + 1 < ROWS && isS(cx, cy + 1)) cy++; const r1 = cy; cy++;
         const hT = 10 - r0, hB = r1 === ROWS - 1 ? deep : 10 - (r1 + 1);
-        const ice = game.tile(cx, r0) === 5;
+        const ice = game.tile(cx, r0) === 5, conv = game.tile(cx, r0) === 8;
         const top = ice ? cIce : cGrass, side = cDirt, side2 = r1 === ROWS - 1 ? cDirt2 : cDirt;
         if (!isS(cx, r0 - 1)) {
-          use('top'); quad(P(fa, hT, D), P(fb, hT, D), P(fb, hT, -D), P(fa, hT, -D), top, top, [cx, 0, cx + 1, 0, cx + 1, 1, cx, 1]);
+          use(conv ? 'conv' : 'top'); quad(P(fa, hT, D), P(fb, hT, D), P(fb, hT, -D), P(fa, hT, -D), top, top, [cx, 0, cx + 1, 0, cx + 1, 1, cx, 1]); use('top');
           const lip = ice ? cIce : cGrass.clone().multiplyScalar(0.85);
           quad(P(fa, hT - 0.4, D + 0.07), P(fb, hT - 0.4, D + 0.07), P(fb, hT + 0.02, D + 0.07), P(fa, hT + 0.02, D + 0.07), lip, lip, [cx, 0, cx + 1, 0, cx + 1, 0.4, cx, 0.4]);
         }
@@ -290,17 +338,19 @@ export class World3D {
         }
       }
     }
-    const topTex = w.cave ? this.pixTex('ice', 0xcfeeff) : w.sky3 ? this.pixTex('stone', 0xf0e8ff) : this.pixTex('grass', w.grass, 0xffe066);
-    const sideTex = w.cave ? this.pixTex('stone', 0x7080c0) : w.sky3 ? this.pixTex('brick', 0xc8b0e0, 0x8a78b0) : this.pixTex('dirt', w.dirt, 0xb89a7a);
+    const topTex = w.mine ? this.pixTex('stone', 0x8a7468) : w.cave ? this.pixTex('ice', 0xcfeeff) : w.sky3 ? this.pixTex('stone', 0xf0e8ff) : this.pixTex('grass', w.grass, 0xffe066);
+    const sideTex = w.mine ? this.pixTex('stone', 0x6a4038) : w.cave ? this.pixTex('stone', 0x7080c0) : w.sky3 ? this.pixTex('brick', 0xc8b0e0, 0x8a78b0) : this.pixTex('dirt', w.dirt, 0xb89a7a);
     const iceTex = this.pixTex('ice', 0xd8f4ff);
-    for (const [k, tex] of [['top', topTex], ['side', sideTex]]) {
+    const convTex = this.pixTex('conv', 0x8a8a98).clone(); convTex.needsUpdate = true; this.convTex = convTex;
+    const lavaTex = this.pixTex('lava', 0xff6a1a).clone(); lavaTex.needsUpdate = true; this.lavaTex = lavaTex;
+    for (const [k, tex] of [['top', topTex], ['side', sideTex], ['conv', convTex], ['lava', lavaTex]]) {
       const [p, c, u] = B[k]; if (!p.length) continue;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
       geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
       geo.computeVertexNormals();
-      const m = patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }));
+      const m = patchPSX(k === 'lava' ? new THREE.MeshBasicMaterial({ map: tex }) : new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }));
       const mesh = new THREE.Mesh(geo, m); mesh.userData.own = true; this.level.add(mesh);
     }
     this.iceTex = iceTex;
@@ -377,7 +427,7 @@ export class World3D {
   }
 
   buildScenery(game) {
-    const w = game.world, r = rng(game.levelIndex * 31 + 7), q = QUALITY[this.quality].decor;
+    const w = game.world, r = rng(game.levelIndex * 31 + 7), q = QUALITY[this.quality].decor * (this.lite ? 0.55 : 1);
     const kinds = {
       tree: () => [[cyl(0.18, 0.25, 1.6, 5), 0x6a4a3a, 0, 0.8, 0], [ico(1.0, 0), w.grass === 0x6fd35a ? 0x2f8a3a : 0x5a8a5a, 0, 2.2, 0], [ico(0.7, 0), 0x48b040, 0.5, 1.8, 0.3]],
       pine: () => [[cyl(0.15, 0.2, 1, 5), 0x6a4a3a, 0, 0.5, 0], [cone(0.9, 1.6, 6), 0x1c5a30, 0, 1.6, 0], [cone(0.65, 1.2, 6), 0x2a7a40, 0, 2.4, 0]],
@@ -388,19 +438,26 @@ export class World3D {
       crystal: () => [[new THREE.OctahedronGeometry(0.5, 0), 0x8ff0ff, 0, 0.8, 0, 1, 2.2], [new THREE.OctahedronGeometry(0.35, 0), 0xd5b4ff, 0.45, 0.5, 0.1, 1, 1.8]],
       icepine: () => [[cyl(0.12, 0.16, 0.8, 5), 0x6a7aa8, 0, 0.4, 0], [cone(0.8, 1.5, 6), 0xbfe8ff, 0, 1.4, 0], [cone(0.55, 1.1, 6), 0xffffff, 0, 2.2, 0]],
       stalag: () => [[cone(0.5, 2.5, 5), 0x6a7ac8, 0, 9, 0, 1, 1, Math.PI]],
-      rock: () => [[new THREE.DodecahedronGeometry(0.6, 0), 0x6a78a8, 0, 0.3, 0]],
+      rock: () => [[new THREE.DodecahedronGeometry(0.6, 0), w.mine ? 0x5a4a44 : 0x6a78a8, 0, 0.3, 0]],
+      rockspire: () => [[cone(0.7, 3.2, 6), 0x4a3a38, 0, 1.6, 0], [cone(0.45, 1.8, 5), 0x5a4642, 0.6, 0.9, 0.2], [new THREE.DodecahedronGeometry(0.5, 0), 0x3a2e2c, -0.5, 0.3, 0]],
+      deadtree: () => [[cyl(0.12, 0.2, 2.4, 5), 0x3a2a24, 0, 1.2, 0], [cyl(0.05, 0.08, 1.0, 4), 0x3a2a24, 0.35, 1.9, 0, 1, 1, 0.9], [cyl(0.05, 0.08, 0.8, 4), 0x3a2a24, -0.3, 1.6, 0, 1, 1, -0.8]],
+      minelamp: () => [[cyl(0.06, 0.08, 1.8, 4), 0x2a2020, 0, 0.9, 0], [box(0.5, 0.06, 0.06), 0x2a2020, 0.2, 1.75, 0], [box(0.2, 0.26, 0.2), 0xffc050, 0.4, 1.55, 0]],
+      ember: () => [[new THREE.DodecahedronGeometry(0.5, 0), 0x2a1c1c, 0, 0.3, 0], [ico(0.2, 0), 0xff7a1a, 0.15, 0.55, 0.1]],
       tower: () => [[cyl(0.9, 1.0, 5, 8), 0xf0e8ff, 0, 2.5, 0], [cone(1.2, 2, 8), 0xe85a9a, 0, 6, 0], [box(0.3, 0.5, 0.1), 0x4a3a8a, 0, 3.5, 0.95]],
       cloudpuff: () => [[ico(1.2, 1), 0xffffff, 0, -2.5, 0], [ico(0.9, 1), 0xfff4fa, 1.2, -2.8, 0.3], [ico(0.8, 1), 0xffffff, -1.1, -2.9, -0.2]],
       banner: () => [[cyl(0.05, 0.05, 2.4, 4), 0x8a6a4a, 0, 1.2, 0], [box(0.04, 0.8, 0.6), 0xe8414e, 0, 1.9, 0.3]],
     };
     const lists = {};
-    const SWAY = { tree: 1, pine: 0.55, flower: 1.2, bush: 0.7, icepine: 0.45, banner: 1.4, shroom: 0.25 };
+    const SWAY = { tree: 1, pine: 0.55, flower: 1.2, bush: 0.7, icepine: 0.45, banner: 1.4, shroom: 0.25, deadtree: 0.2 };
+    const TEXK = { tree: ['bark', 'leaf', 'leaf'], pine: ['bark', 'needle', 'needle'], icepine: ['bark', 'needle', 'needle'], bush: ['leaf', 'leaf'], rock: ['rock'], stalag: ['rock'],
+      rockspire: ['rock', 'rock', 'rock'], deadtree: ['bark', 'bark', 'bark'], tower: ['brick', 'plain', 'plain'], lantern: ['bark'], minelamp: ['bark'], ember: ['rock'] };
     const add = (kind, px, z, s, yaw, hOff = 0) => {
       const parts = kinds[kind](), sw = SWAY[kind] || 0;
       const base = new THREE.Object3D(); this.map(px, 300 - hOff * T, z, base.position); base.rotation.y = yaw; base.scale.setScalar(s); base.updateMatrix();
       parts.forEach(([g, c, x, y, zz, sx = 1, sy = 1, rx = 0], i) => {
         const lm = new THREE.Matrix4().compose(new THREE.Vector3(x, y, zz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), new THREE.Vector3(sx, sy, sx));
-        (lists[c] = lists[c] || []).push([g, c, base.matrix.clone().multiply(lm), i > 0 ? sw : 0]);
+        const cls = (TEXK[kind] || [])[i] || 'plain';
+        (lists[cls] = lists[cls] || []).push([g, c, base.matrix.clone().multiply(lm), i > 0 ? sw : 0]);
       });
     };
     // avoid placing scenery on top of the path itself
@@ -422,14 +479,14 @@ export class World3D {
       }
       if (r() < 0.25 * q && !w.sky3) { const kind = w.cave ? 'crystal' : 'flower'; this.map(px, 300, 2.2 + r() * 2, v); if (clear(v, 1.8)) add(kind, px, 2.2 + r() * 1.5, w.cave ? 0.3 : 0.6, r() * 6, 0); }
     }
-    if (!w.cave && !w.sky3) for (let px = -60; px < game.pxW + 200; px += 14 * (2 - q)) { // dense pine wall
+    if (!w.cave && !w.sky3) for (let px = -60; px < game.pxW + 200; px += 14 * (2 - q)) { // dense pine wall (dead trees and spires in the mines)
       const z = -(10 + r() * 20); this.map(px, 300, z, v); if (!clear(v, 3.2)) continue;
-      add(r() < 0.75 ? 'pine' : 'tree', px, z, 0.9 + r() * 0.9, r() * 6.28, -r() * 0.8);
+      add(w.mine ? (r() < 0.6 ? 'rockspire' : 'deadtree') : r() < 0.75 ? 'pine' : 'tree', px, z, 0.9 + r() * 0.9, r() * 6.28, -r() * 0.8);
     }
     if (w.cave) for (let px = -60; px < game.pxW + 200; px += 22) { const z = -(8 + r() * 14); this.map(px, 300, z, v); if (clear(v, 3)) add(r() < 0.5 ? 'crystal' : 'icepine', px, z, 1.2 + r(), r() * 6.28, 0); }
     if (w.sky3) for (let px = -60; px < game.pxW + 200; px += 40) { const z = -(10 + r() * 14); this.map(px, 300, z, v); if (clear(v, 4)) add('tower', px, z, 1 + r() * 0.8, r() * 6.28, -3 - r() * 4); }
     // layered background: far mountains / spires, mid hills, distant castles, waterfalls
-    const push = (g, c, m4) => (lists['bg' + c] = lists['bg' + c] || []).push([g, c, m4, 0]);
+    const push = (g, c, m4, cls = 'plain') => (lists[cls] = lists[cls] || []).push([g, c, m4, 0]);
     const at = (px, z, y, sx, sy, sz, yaw = 0) => { const o = new THREE.Object3D(); this.map(px, 300, z, o.position); o.position.y += y; o.rotation.y = yaw; o.scale.set(sx, sy, sz); o.updateMatrix(); return o.matrix; };
     const farC = new THREE.Color(w.far), snow = w.sky3 ? 0xffffff : w.cave ? 0x9fb8ff : 0xf4f8ff;
     const mount = cone(1, 1, 7), hill = ico(1, 1), cap = cone(1, 1, 7);
@@ -462,13 +519,14 @@ export class World3D {
     // waterfalls (forest, caverns): cliff + scrolling water sheet + foam
     this.falls = [];
     if (!w.sky3) {
-      const waterTex = this.pixTex('water', w.cave ? 0x6ab0ff : 0x7ad0ff).clone(); waterTex.repeat.set(1, 3); waterTex.needsUpdate = true; this.waterTex = waterTex;
+      const waterTex = this.pixTex('water', w.mine ? 0xff7a1a : w.cave ? 0x6ab0ff : 0x7ad0ff).clone(); waterTex.repeat.set(1, 3); waterTex.needsUpdate = true; this.waterTex = waterTex;
       const wm = patchPSX(new THREE.MeshBasicMaterial({ map: waterTex, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-      const rockC = w.cave ? 0x4a5490 : 0x7a6a62;
+      const rockC = w.cave ? 0x5a64a0 : w.mine ? 0x4a3a36 : 0x8a7a70, dodec = new THREE.DodecahedronGeometry(1, 0);
       for (let i = 0; i < 3; i++) {
         const px = (i + 0.3 + r() * 0.4) / 3 * game.pxW, z = -(30 + r() * 10); this.map(px, 300, z, v); if (!clear(v, 16)) continue;
         const hgt = 16 + r() * 6;
-        push(box(5, hgt, 3), rockC, at(px, z - 1.6, -4 + hgt / 2, 1, 1, 1));
+        for (let k = 0; k < 5; k++) push(dodec, rockC, at(px + (k % 2 ? 40 : -40) * (k > 2 ? 1.4 : 1), z - 2 - r() * 1.5, -4 + k * hgt / 5 + 1.5, 2.6 + r() * 0.8, hgt / 4.5, 2 + r() * 0.6, r() * 3), 'rock');
+        push(dodec, rockC, at(px, z - 2.6, -4 + hgt / 2, 2.4, hgt / 2, 1.6), 'rock');
         const sheet = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hgt), wm); sheet.userData.own = true;
         this.map(px, 300, z, sheet.position); sheet.position.y += -4 + hgt / 2; this.orient(sheet, px); sheet.rotateY(-Math.PI / 2);
         this.level.add(sheet);
@@ -476,8 +534,12 @@ export class World3D {
         this.falls.push({ px, z });
       }
     }
-    const all = Object.values(lists).flat();
-    if (all.length) { const mesh = new THREE.Mesh(this.merge(all), patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true }), true)); mesh.userData.own = true; this.level.add(mesh); }
+    for (const [cls, list] of Object.entries(lists)) {
+      if (!list.length) continue;
+      const m = new THREE.MeshLambertMaterial({ vertexColors: true, map: cls === 'plain' ? null : this.detailTex(cls) });
+      const mesh = new THREE.Mesh(this.merge(list), patchPSX(m, true)); mesh.userData.own = true; this.level.add(mesh);
+    }
+    this.buildFoliage(game, clear, r, q);
     // shared ground plane far below for cave/forest depth
     if (!w.sky3) {
       const pl = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), mat(new THREE.Color(w.far).multiplyScalar(0.55).getHex(), {})); pl.rotation.x = -Math.PI / 2; pl.position.y = -8; pl.userData.own = true;
@@ -485,8 +547,36 @@ export class World3D {
     }
   }
 
+  // Billboard foliage: crossed alpha-tested cards for grass/ferns near the track and painted pines far away.
+  buildFoliage(game, clear, r, q) {
+    const w = game.world, v = new THREE.Vector3(), tufts = [], far = [];
+    const kind = w.cave ? 'iceblade' : w.mine ? 'drygrass' : 'fern';
+    const pl = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0), pl2 = pl.clone().rotateY(Math.PI / 2);
+    const isTop = (cx) => { for (let cy = 0; cy < ROWS; cy++) { const t = game.tile(cx, cy); if (t === 1 || t === 5) return cy; if (t) return -1; } return -1; };
+    const step = 14 / q;
+    if (!w.sky3) for (let px = 0; px < game.pxW; px += step * (0.6 + r() * 0.8)) {
+      const cy = isTop(Math.floor(px / T)); if (cy < 0) continue;
+      for (const zz of [-(1.15 + r() * 0.7), r() < 0.35 ? 1.2 + r() * 0.3 : null]) {
+        if (zz === null) continue;
+        const o = new THREE.Object3D(); this.map(px, cy * T, zz, o.position); this.orient(o, px); o.rotateY(r() * 3); const sc = (zz > 0 ? 0.45 : 0.6) + r() * 0.5; o.scale.set(sc, sc * (0.8 + r() * 0.5), sc); o.updateMatrix();
+        const tint = new THREE.Color(0xffffff).multiplyScalar(0.85 + r() * 0.3).getHex();
+        tufts.push([pl, tint, o.matrix.clone(), 0.6], [pl2, tint, o.matrix.clone(), 0.6]);
+      }
+    }
+    if (!w.cave && !w.sky3 && !w.mine) for (let px = -200; px < game.pxW + 400; px += 9 / q) { // painted pine cards
+      const z = -(30 + r() * 26); this.map(px, 300, z, v); if (!clear(v, 14)) continue;
+      const o = new THREE.Object3D(); o.position.copy(v); o.position.y -= 2 + r() * 2; this.orient(o, px); o.rotateY(-Math.PI / 2); const sc = 4 + r() * 4; o.scale.set(sc * 0.55, sc, sc); o.updateMatrix();
+      const tint = new THREE.Color(0xffffff).multiplyScalar(0.7 + r() * 0.35).getHex();
+      far.push([pl, tint, o.matrix.clone(), 0]);
+    }
+    const mk = (list, tex, sway) => { if (!list.length) return; const m = new THREE.MeshLambertMaterial({ map: tex, vertexColors: true, alphaTest: 0.5, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(this.merge(list), patchPSX(m, sway)); mesh.userData.own = true; this.level.add(mesh); };
+    mk(tufts, this.cardTex(kind), true); mk(far, this.cardTex('pinecard'), false);
+  }
+
   buildDynamic(game) {
-    this.heroes = { wren: makeWren(), bobble: makeBobble() };
+    const cos = game.costumes || {};
+    this.heroes = { wren: withCostume(cos.wren, makeWren), bobble: withCostume(cos.bobble, makeBobble), pip: withCostume(cos.pip, makePip) };
     for (const h of Object.values(this.heroes)) { h.root.visible = false; this.level.add(h.root); }
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.35, 10), mat(0x000000, { basic: true, opacity: 0.3 })); this.shadow.rotation.x = -Math.PI / 2; this.level.add(this.shadow);
     for (const e of game.ents) { e.model = e.type === 'boss' ? makeBoss(e.kind) : makeEnemy(e.type, game.def.world); this.level.add(e.model.root); }
@@ -499,6 +589,19 @@ export class World3D {
       this.level.add(pl.mesh);
     }
     this.shotMeshes = [];
+    // ropes for swinging planks, hubs + spokes for plank wheels
+    this.ropeMeshes = [];
+    for (const pl of game.plats) if (pl.swing || pl.wheel) {
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(pl.swing ? 0.05 : 0.09, pl.swing ? 0.05 : 0.09, 1, 5).translate(0, 0.5, 0), mat(pl.swing ? 0xc8a070 : 0x6a6a7a)); rope.userData.own = true;
+      this.level.add(rope); this.ropeMeshes.push([pl, rope]);
+      if (pl.swing) { const knot = meshOf(ico(0.18, 0), 0x6a4a2a); this.map(pl.px, pl.py, 0, knot.position); this.level.add(knot); }
+    }
+    for (const wh of game.wheels || []) { const hub = meshOf(cyl(0.35, 0.35, 0.5, 8), 0x8a6a4a); this.map(wh.x, wh.y, -0.3, hub.position); this.orient(hub, wh.x); hub.rotateX(Math.PI / 2); this.level.add(hub); }
+    // secret doors and bonus exits: glowing arches
+    const arch = (x, y, col) => { const g = new THREE.Group(); g.add(meshOf(new THREE.TorusGeometry(0.75, 0.13, 5, 12, Math.PI), col, 0, 1.0, 0)); g.add(meshOf(box(0.2, 1.0, 0.2), col, -0.75, 0.5, 0)); g.add(meshOf(box(0.2, 1.0, 0.2), col, 0.75, 0.5, 0));
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.6), mat(0xb07cff, { basic: true, opacity: 0.6, side: THREE.DoubleSide })); d.position.y = 0.85; g.add(d);
+      this.map(x, y, -0.2, g.position); this.orient(g, x); g.rotateY(Math.PI / 2); this.level.add(g); return g; };
+    this.doorMeshes = [...game.doors.map((d) => arch(d.x + d.w / 2, d.y + d.h, 0x8a5ad8)), ...game.exits.map((d) => arch(d.x + d.w / 2, d.y + d.h, 0x4ad08a))];
   }
 
   makeParticles() {
@@ -518,8 +621,17 @@ export class World3D {
     const g = game;
     setTime(g.t);
     if (this.waterTex) this.waterTex.offset.y = (g.t * 1.6) % 1;
+    if (this.convTex) this.convTex.offset.x = -(g.t * 3.7) % 1;
+    if (this.lavaTex) { this.lavaTex.offset.x = (g.t * 0.15) % 1; this.lavaTex.offset.y = Math.sin(g.t) * 0.1; }
+    for (const [pl, rope] of this.ropeMeshes || []) {
+      const a = this.map(pl.px, pl.py, 0, this._ra || (this._ra = new THREE.Vector3())), b = this.map(pl.x + pl.w / 2, pl.y, 0, this._rb || (this._rb = new THREE.Vector3()));
+      rope.position.copy(a); const d = this._rd || (this._rd = new THREE.Vector3()); d.subVectors(b, a); const len = d.length(); rope.scale.set(1, len, 1);
+      rope.quaternion.setFromUnitVectors(UP, d.normalize());
+    }
+    for (const dm of this.doorMeshes || []) dm.children[3].material.opacity = 0.45 + Math.sin(g.t * 5) * 0.2;
     // events from the simulation
     for (const ev of g.events) {
+      if (ev.type === 'warp') { this.snapCam = true; continue; }
       if (ev.type === 'burst') for (let i = 0; i < ev.n; i++) { const a = Math.random() * 6.283, s = ev.sp * (0.3 + Math.random() * 0.7); this.spawn(ev.x, ev.y, Math.cos(a) * s, Math.sin(a) * s, 0.4 + Math.random() * 0.4, ev.col); }
       else if (ev.type === 'dust') for (let i = 0; i < ev.n; i++) this.spawn(ev.x + (Math.random() - 0.5) * 16, ev.y, (Math.random() - 0.5) * 180, -Math.random() * 70, 0.4, 0xffffff);
       else if (ev.type === 'trail') this.spawn(ev.x, ev.y, 0, 0, 0.3, 0xbbffff);
@@ -552,6 +664,15 @@ export class World3D {
       if (md.legs) md.legs.forEach((l, i) => (l.rotation.x = Math.sin(e.t * 14 + i * 1.7) * 0.6));
       if (md.wings) md.wings.forEach((w, i) => (w.rotation.z = Math.sin(e.t * (e.type === 'boss' ? 8 : 22)) * 0.7 * (i ? -1 : 1)));
       if (md.ball) md.ball.rotation.x += (e.vx / T) * dt / 0.4;
+      if (e.type === 'ember') { md.root.visible = vis && e.state !== 'wait'; if (md.flames) md.flames.forEach((f, i) => { f.scale.y = 0.8 + Math.sin(g.t * 20 + i * 2) * 0.35; }); md.g.rotation.z = e.vy > 0 ? Math.PI : 0; }
+      if (e.type === 'boss') {
+        const warn = (e.warn || 0) > 0, k = e.phase2 ? 1.12 : 1;
+        md.shell.visible = (warn && Math.floor(g.t * 16) % 2 === 0) || (e.phase2 && Math.floor(g.t * 3) % 3 === 0);
+        md.root.scale.setScalar(k * (warn ? 1 + Math.sin(g.t * 40) * 0.04 : 1));
+        if (md.arms) md.arms.forEach((a, i) => { a.rotation.x = warn ? -2.2 : Math.sin(e.t * 6 + i * 3) * 0.5; });
+        if (md.head) md.head.rotation.y = Math.sin(e.t * 2) * 0.3;
+        if (md.torso) md.torso.rotation.z = e.onGround ? Math.sin(e.t * 6) * 0.05 : 0;
+      }
       if (md.sq) { const k = e.onGround ? Math.max(0, Math.sin(e.t * 6)) * 0.12 : -0.12; md.sq.scale.set(1 + k, 1 - k, 1 + k); }
       if (e.type === 'boss') md.root.visible = vis && !(e.hitT > 0 && Math.floor(e.hitT * 20) % 2);
     }
@@ -568,7 +689,13 @@ export class World3D {
     if (this.goalMesh) { const open = !g.boss || !g.boss.alive; this.goalDisc.visible = open; this.goalMesh.children[0].rotation.z = g.t; this.goalDisc.material.opacity = 0.55 + Math.sin(g.t * 4) * 0.2; }
     // projectiles
     while (this.shotMeshes.length < g.shots.length) { const sm = meshOf(cone(0.12, 0.6, 4), 0xbfe8ff); this.level.add(sm); this.shotMeshes.push(sm); }
-    this.shotMeshes.forEach((sm, i) => { const s = g.shots[i]; sm.visible = !!s; if (s) { this.map(s.x + s.w / 2, s.y + s.h / 2, 0, sm.position); sm.rotation.set(Math.PI, 0, 0); sm.material = mat(s.type === 'feather' ? 0x5a5aa8 : 0xbfe8ff); } });
+    const SHOT = { feather: [0x5a5aa8], icicle: [0xbfe8ff], seed: [0x8a5a2a], wave: [0x9fe8ff, true], ember: [0xff7a1a, true] };
+    this.shotMeshes.forEach((sm, i) => { const s = g.shots[i]; sm.visible = !!s; if (s) {
+      this.map(s.x + s.w / 2, s.y + s.h / 2, 0, sm.position);
+      const st = SHOT[s.type] || SHOT.icicle, wv = s.type === 'wave';
+      sm.rotation.set(wv ? 0 : s.type === 'seed' ? g.t * 10 : Math.PI, 0, wv ? (s.vx > 0 ? -Math.PI / 2 : Math.PI / 2) : 0);
+      sm.scale.set(wv ? 1.6 : 1, wv ? 1.4 : 1, wv ? 2.2 : 1);
+      sm.material = mat(st[0], st[1] ? { emissive: st[0] === 0xff7a1a ? 0xaa3300 : 0x2a6a90 } : {}); } });
     // particles
     let n = 0; const v = this.tmpV;
     for (const q of this.parts) {

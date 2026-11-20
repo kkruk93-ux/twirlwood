@@ -74,7 +74,7 @@ export class Game {
     this.p = this.mkPlayer(start);
     this.hearts = 3; this.maxHearts = 3; this.coinCount = 0; this.gems = new Array(this.gemTotal).fill(false);
     this.deaths = 0; this.time = 0; this.done = false; this.doneT = 0; this.doneShown = false; this.shakeT = 0; this.fade = 1; this.rescues = 0;
-    this.stuckT = 0; this.bestX = 0; this.over = false; this.lifeCoins = 0; this.switchCD = 0;
+    this.stuckT = 0; this.bestX = 0; this.over = false; this.lifeCoins = 0; this.switchCD = 0; this.kills = 0; this.hurts = 0; this.secretFound = false; this.switches = 0;
     this.hooks.hud(this);
   }
 
@@ -131,7 +131,7 @@ export class Game {
     if (this.switchCD > 0 || this.done || this.roster.length < 2) return;
     const p = this.p;
     const r = this.roster, i = r.indexOf(this.charId);
-    this.charId = r[(i + 1) % r.length]; this.C = CHARS[this.charId];
+    this.charId = r[(i + 1) % r.length]; this.C = CHARS[this.charId]; this.switches++;
     const bottom = p.y + p.h; p.w = this.C.w; p.h = this.C.h; p.y = bottom - p.h;
     p.pounding = false; p.dashT = 0; this.switchCD = 0.6;
     sfx('switch'); this.burst(p.x + p.w / 2, p.y + p.h / 2, 18, 0xffffff, 160);
@@ -309,7 +309,7 @@ export class Game {
     { const cx = Math.floor((p.x + p.w / 2) / T), cy = Math.floor((p.y + p.h - 4) / T);
       if (this.tile(cx, cy) === 7 && p.y + p.h > cy * T + 10) { this.hurt(p.x + p.w / 2 + p.face * 10, true); p.vy = -820; p.springy = true; p.pounding = false; this.burst(p.x + p.w / 2, cy * T + 10, 14, 0xff8a2a, 200); } }
     // secret doors (warp to the bonus room) and bonus exits
-    if (this.bonusSpot && !this.warpCD) for (const d of this.doors) if (overlap(p, d)) { d.used = true; this.lastDoor = d; this.warp(this.bonusSpot.x, this.bonusSpot.y); this.hooks.toast('Secret room!'); }
+    if (this.bonusSpot && !this.warpCD) for (const d of this.doors) if (overlap(p, d)) { d.used = true; this.lastDoor = d; this.secretFound = true; this.warp(this.bonusSpot.x, this.bonusSpot.y); this.hooks.toast('Secret room!'); }
     if (!this.warpCD) for (const q of this.exits) if (overlap(p, q)) { const d = this.lastDoor || this.doors[0]; if (d) this.warp(d.x + 70, d.y + 60); }
     for (const s of this.springs) if (p.vy >= 0 && overlap(p, s) && prevBottom <= s.y + 14) {
       p.vy = -930; p.springy = true; p.onGround = false; p.coyote = 0; p.buffer = 0; p.ride = null; p.pounding = false; p.airJumps = 1; p.dashUsed = false;
@@ -352,6 +352,7 @@ export class Game {
   bounce() { const p = this.p; p.vy = this.lastJumpHeld ? -600 : -420; p.pounding = false; p.airJumps = 1; p.dashUsed = false; p.dashT = 0; }
 
   kill(e) {
+    if (e.type !== 'boss') this.kills++;
     e.alive = false; e.deadT = 0.5; sfx('stomp'); this.vibe(15);
     this.burst(e.x + e.w / 2, e.y + e.h / 2, 12, { hopper: 0xff7a8a, wisp: 0xbbffff, bat: 0x9a7ad8, roller: 0x8a6a3a, crab: 0x8ff0ff, ember: 0xff8a2a }[e.type] || 0x7fe08a, 160);
   }
@@ -372,7 +373,7 @@ export class Game {
     const p = this.p;
     if (this.done) return;
     if (p.inv > 0) { if (lava) { p.vy = -820; } return; }
-    this.hearts--; p.inv = 1.3; this.hooks.hud(this);
+    this.hearts--; this.hurts++; p.inv = 1.3; this.hooks.hud(this);
     sfx('hurt'); this.shake(0.25); this.vibe(80);
     p.vx = (p.x + p.w / 2 < fromX ? -1 : 1) * 230; p.vy = -380; p.pounding = false; p.dashT = 0;
     this.burst(p.x + p.w / 2, p.y + p.h / 2, 10, 0xff5a7a, 150);
@@ -381,7 +382,7 @@ export class Game {
 
   die(pit) {
     if (this.assist) return;
-    this.deaths++; this.lives--; sfx(pit ? 'fall' : 'hurt');
+    this.deaths++; if (!this.trial) this.lives--; sfx(pit ? 'fall' : 'hurt');
     if (this.lives <= 0) { this.over = true; this.hooks.gameOver(this); return; }
     this.hearts = this.maxHearts;
     this.hooks.toast(`Lives: ${this.lives}`);

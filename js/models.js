@@ -33,7 +33,10 @@ export function mat(color, opts = {}) {
   }
   return matCache.get(key);
 }
-function m(geo, color, x = 0, y = 0, z = 0, opts) { const o = new THREE.Mesh(geo, mat(color, opts)); o.position.set(x, y, z); return o; }
+// costume palette swap: while building a hero, colours are remapped through CM
+let CM = null;
+export function withCostume(map, fn) { CM = map || null; try { return fn(); } finally { CM = null; } }
+function m(geo, color, x = 0, y = 0, z = 0, opts) { if (CM && CM[color] !== undefined) color = CM[color]; const o = new THREE.Mesh(geo, mat(color, opts)); o.position.set(x, y, z); return o; }
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const ico = (r, d = 0) => new THREE.IcosahedronGeometry(r, d);
 const cone = (r, h, s = 5) => new THREE.ConeGeometry(r, h, s);
@@ -101,6 +104,28 @@ export function makeBobble() {
   return { root, body, legL, legR, armL, armR, head, hatL, hatR, eyes, kind: 'bobble' };
 }
 
+export function makePip() {
+  const root = new THREE.Group(), body = pivot(root, 0, 0, 0);
+  const legL = pivot(body, -0.09, 0.3, 0), legR = pivot(body, 0.09, 0.3, 0);
+  for (const l of [legL, legR]) { l.add(m(box(0.11, 0.3, 0.11), 0xe07a2a, 0, -0.14, 0)); l.add(m(box(0.14, 0.07, 0.2), 0x3a2a4a, 0, -0.3, 0.04)); }
+  body.add(m(ico(0.26, 1), 0xf08a3a, 0, 0.52, 0));
+  body.add(m(ico(0.17, 1), 0xfff0d8, 0, 0.5, 0.12));
+  const scarf = pivot(body, 0, 0.72, 0); scarf.add(m(new THREE.TorusGeometry(0.16, 0.05, 4, 8), 0x4ad08a, 0, 0, 0).rotateX(Math.PI / 2));
+  const armL = pivot(body, -0.24, 0.62, 0), armR = pivot(body, 0.24, 0.62, 0);
+  for (const a of [armL, armR]) { a.add(m(box(0.08, 0.26, 0.08), 0xf08a3a, 0, -0.12, 0)); a.add(m(ico(0.06), 0xfff0d8, 0, -0.27, 0)); }
+  const head = pivot(body, 0, 0.92, 0);
+  head.add(m(ico(0.24, 1), 0xf08a3a)); head.add(m(ico(0.13, 1), 0xfff0d8, 0, -0.07, 0.15));
+  head.add(m(ico(0.04), 0x2a1a2a, 0, -0.02, 0.27));
+  for (const s of [-1, 1]) { const e = m(cone(0.1, 0.34, 4), 0xf08a3a, s * 0.14, 0.27, -0.02); e.rotation.z = -s * 0.3; head.add(e); const ei = m(cone(0.05, 0.2, 4), 0xffd0b0, s * 0.14, 0.25, 0.03); ei.rotation.z = -s * 0.3; head.add(ei); }
+  const eyes = pivot(head, 0, 0.04, 0.2);
+  for (const s of [-1, 1]) { eyes.add(m(box(0.08, 0.1, 0.02), 0xffffff, s * 0.08, 0, 0)); eyes.add(m(box(0.04, 0.07, 0.02), 0x1a1a3a, s * 0.08, 0, 0.012)); }
+  head.add(m(box(0.34, 0.05, 0.05), 0x6a4a2a, 0, 0.12, 0.16)); // goggles strap
+  for (const s of [-1, 1]) head.add(m(cyl(0.06, 0.06, 0.04, 8), 0x8fe0ff, s * 0.08, 0.13, 0.2, { emissive: 0x204050 }).rotateX(Math.PI / 2));
+  const tail = pivot(body, 0, 0.4, -0.2);
+  let t = tail; for (let i = 0; i < 4; i++) { const seg = pivot(t, 0, 0.06, -0.1); seg.add(m(ico(0.1 - i * 0.012, 0), i === 3 ? 0xfff0d8 : 0xf08a3a)); seg.rotation.x = -0.35; t = seg; }
+  return { root, body, legL, legR, armL, armR, head, tail, eyes, kind: 'pip' };
+}
+
 export function animateHero(h, s) {
   // s: {t, run, air, vy, glide, spin, pound, squash, attack, dash, dance}
   const ph = s.t * 14, sw = Math.sin(ph) * s.run;
@@ -161,6 +186,11 @@ export function makeEnemy(type, world) {
     g.add(m(ico(0.42, 1), 0xbff8ff, 0, 0.35, 0, { basic: true, opacity: 0.25 }));
     parts.wings = [];
     for (const s of [-1, 1]) { const w = pivot(g, s * 0.2, 0.4, -0.05); w.add(m(box(0.5, 0.02, 0.22), 0xddf8ff, s * 0.25, 0, 0, { basic: true, opacity: 0.7 })); parts.wings.push(w); }
+  } else if (type === 'ember') {
+    parts.flames = [];
+    g.add(m(ico(0.24, 1), 0xffd23a, 0, 0.35, 0, { emissive: 0xff6a00 }));
+    for (let i = 0; i < 5; i++) { const f = m(cone(0.12, 0.45, 4), i % 2 ? 0xff6a1a : 0xffaa2a, Math.cos(i * 1.256) * 0.14, 0.5, Math.sin(i * 1.256) * 0.14, { emissive: 0xaa3300 }); parts.flames.push(f); g.add(f); }
+    g.add(m(box(0.06, 0.09, 0.03), 0x2a0a0a, -0.08, 0.38, 0.22)); g.add(m(box(0.06, 0.09, 0.03), 0x2a0a0a, 0.08, 0.38, 0.22));
   } else if (type === 'bat') {
     g.add(m(ico(0.22, 0), 0x6a4aa8, 0, 0.3, 0));
     g.add(m(cone(0.06, 0.15, 3), 0x6a4aa8, -0.1, 0.52, 0)); g.add(m(cone(0.06, 0.15, 3), 0x6a4aa8, 0.1, 0.52, 0));
@@ -173,7 +203,20 @@ export function makeEnemy(type, world) {
 
 export function makeBoss(kind) {
   const root = new THREE.Group(), g = pivot(root, 0, 0, 0), parts = { root, g };
-  if (kind === 'bramble') {
+  parts.arms = [];
+  if (kind === 'magma') {
+    const torso = pivot(g, 0, 0, 0); parts.torso = torso;
+    torso.add(m(box(1.5, 1.2, 1.1), 0x3a2a2a, 0, 1.3, 0)); torso.add(m(box(1.1, 0.5, 0.9), 0x4a3430, 0, 2.1, 0));
+    for (const [x, y] of [[-0.4, 1.4], [0.3, 1.1], [0.1, 1.7], [-0.2, 0.95]]) torso.add(m(box(0.5, 0.06, 0.02), 0xff7a1a, x, y, 0.56, { emissive: 0xff4a00 }));
+    const head = pivot(torso, 0, 2.55, 0.1); parts.head = head;
+    head.add(m(box(0.8, 0.6, 0.7), 0x2a1e1e)); head.add(m(box(0.55, 0.12, 0.05), 0xffd23a, 0, 0.05, 0.36, { emissive: 0xff8a00 }));
+    for (const s of [-1, 1]) head.add(m(cone(0.12, 0.4, 4), 0x2a1e1e, s * 0.3, 0.45, 0));
+    for (const s of [-1, 1]) { const a = pivot(torso, s * 0.95, 1.8, 0); a.add(m(box(0.45, 1.0, 0.45), 0x3a2a2a, 0, -0.45, 0)); a.add(m(box(0.55, 0.45, 0.55), 0x2a1e1e, 0, -1.05, 0)); a.add(m(box(0.4, 0.05, 0.02), 0xff7a1a, 0, -0.4, 0.24, { emissive: 0xff4a00 })); parts.arms.push(a); }
+    parts.legs = [];
+    for (const s of [-1, 1]) { const l = pivot(g, s * 0.45, 0.75, 0); l.add(m(box(0.5, 0.75, 0.55), 0x2a1e1e, 0, -0.38, 0)); parts.legs.push(l); }
+  } else if (kind === 'bramble') {
+    for (const s of [-1, 1]) { const a = pivot(g, s * 1.0, 0.75, 0.6); a.add(m(box(0.16, 0.16, 0.7), 0x5a3a9a, 0, 0, 0.3)); a.add(m(cone(0.14, 0.4, 4), 0xffd23a, 0, 0, 0.75).rotateX(Math.PI / 2)); parts.arms.push(a); }
+    for (let i = 0; i < 8; i++) g.add(m(cone(0.1, 0.35, 4), 0x3a2a6a, Math.cos(i * 0.8) * 0.95, 0.75, Math.sin(i * 0.8) * 0.95 - 0.1));
     g.add(m(sph(1.15, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2), 0x5a3a9a, 0, 0.35, 0));
     for (let i = -2; i <= 2; i++) g.add(m(cone(0.18, 0.7, 4), 0xff8a3a, 0, 1.5 - Math.abs(i) * 0.15, i * 0.35));
     g.add(m(ico(0.45, 0), 0x5a3a9a, 0, 0.8, 1.1));
@@ -182,6 +225,7 @@ export function makeBoss(kind) {
     parts.legs = [];
     for (let i = 0; i < 3; i++) for (const s of [-1, 1]) { const lg = pivot(g, s * 0.9, 0.4, -0.5 + i * 0.5); lg.add(m(box(0.12, 0.45, 0.12), 0x2a1a4a, 0, -0.2, 0)); parts.legs.push(lg); }
   } else if (kind === 'frost') {
+    for (let i = 0; i < 6; i++) g.add(m(new THREE.OctahedronGeometry(0.18, 0), 0xdff8ff, Math.cos(i) * 0.5, 2.0 + (i % 2) * 0.15, Math.sin(i) * 0.3, { emissive: 0x204060 }));
     g.add(m(box(1.3, 0.9, 1.0), 0x8fc8f0, 0, 0.9, 0));
     g.add(m(box(0.9, 0.6, 0.8), 0xbfe8ff, 0, 1.65, 0));
     g.add(m(new THREE.OctahedronGeometry(0.35, 0), 0x8ff0ff, 0, 2.2, 0, { emissive: 0x2a6080 }));
@@ -196,8 +240,11 @@ export function makeBoss(kind) {
     for (let i = 0; i < 5; i++) g.add(m(cone(0.06, 0.3, 4), 0xffd23a, Math.cos(i * 1.256) * 0.22, 1.35, 0.1 + Math.sin(i * 1.256) * 0.22));
     const tl = m(cone(0.25, 0.7, 4), 0x2a2a5a, 0, 0.7, -0.7); tl.rotation.x = -Math.PI / 2; g.add(tl);
     parts.wings = [];
-    for (const s of [-1, 1]) { const w = pivot(g, s * 0.5, 0.8, 0); w.add(m(box(1.3, 0.06, 0.6), 0x3a3a7a, s * 0.65, 0, 0)); parts.wings.push(w); }
+    for (const s of [-1, 1]) { const w = pivot(g, s * 0.5, 0.8, 0); w.add(m(box(1.3, 0.06, 0.6), 0x3a3a7a, s * 0.65, 0, 0)); for (let i = 0; i < 4; i++) w.add(m(box(0.3, 0.04, 0.5), 0x5a5aa8, s * (0.4 + i * 0.3), -0.03, -0.25)); parts.wings.push(w); }
+    for (const s of [-1, 1]) { const l = pivot(g, s * 0.2, 0.2, 0); l.add(m(cyl(0.04, 0.04, 0.35, 4), 0xffb030, 0, -0.1, 0)); l.add(m(box(0.2, 0.04, 0.2), 0xffb030, 0, -0.28, 0.05)); }
   }
+  // telegraph / rage glow shell
+  const shell = m(ico(kind === 'magma' ? 1.6 : 1.3, 1), 0xff3a3a, 0, kind === 'magma' ? 1.4 : 0.9, 0, { basic: true, opacity: 0.35 }); shell.visible = false; g.add(shell); parts.shell = shell;
   return parts;
 }
 

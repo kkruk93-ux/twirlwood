@@ -129,6 +129,28 @@ export function drawPortrait(canvas, who) {
   const g = c.createRadialGradient(60, 60, 5, 60, 60, 60); g.addColorStop(0, 'rgba(255,240,180,.6)'); g.addColorStop(1, 'rgba(255,240,180,0)');
   c.fillStyle = g; c.fillRect(0, 0, 120, 120);
   c.save(); c.translate(60, 112); c.scale(1.9, 1.9);
-  (who === 'wren' ? drawWren : drawBobble)(c, 0, 0, { t: 0.2, run: 0, air: 0, face: 1, squash: 0 });
+  ({ wren: drawWren, bobble: drawBobble, pip: drawPip }[who] || drawWren)(c, 0, 0, { t: 0.2, run: 0, air: 0, face: 1, squash: 0 });
   c.restore();
+}
+
+// Pip: a small orange fox-like scout with goggles and a green scarf (original design)
+export function drawPip(c, x, y) {
+  const E = (cx, cy, rx, ry, col, rot = 0) => { c.fillStyle = col; c.beginPath(); c.ellipse(x + cx, y + cy, rx, ry, rot, 0, Math.PI * 2); c.fill(); };
+  // tail
+  E(-15, -14, 7, 13, '#e07a2a', -0.9); E(-21, -22, 4, 6, '#fff0d8', -0.9);
+  // legs, body
+  E(-5, -3, 4, 4, '#3a2a4a'); E(5, -3, 4, 4, '#3a2a4a');
+  E(0, -15, 10, 12, '#f08a3a'); E(0, -12, 6, 8, '#fff0d8');
+  // scarf
+  c.fillStyle = '#4ad08a'; c.fillRect(x - 9, y - 27, 18, 5); c.fillRect(x + 5, y - 25, 5, 10);
+  // head + ears
+  c.fillStyle = '#f08a3a'; c.beginPath(); c.moveTo(x - 11, y - 38); c.lineTo(x - 7, y - 54); c.lineTo(x - 1, y - 41); c.fill();
+  c.beginPath(); c.moveTo(x + 11, y - 38); c.lineTo(x + 7, y - 54); c.lineTo(x + 1, y - 41); c.fill();
+  E(0, -36, 12, 10, '#f08a3a'); E(3, -32, 7, 5, '#fff0d8');
+  E(9, -33, 2, 1.6, '#1a1a3a');
+  // goggles on forehead
+  c.fillStyle = '#6a4a2a'; c.fillRect(x - 11, y - 44, 22, 3);
+  E(-4, -43, 4, 3.3, '#8fe0ff'); E(5, -43, 4, 3.3, '#8fe0ff');
+  // eyes
+  E(-2, -36, 2.3, 3, '#1a1a3a'); E(5, -36, 2.3, 3, '#1a1a3a'); E(-1.4, -37, .8, .9, '#fff'); E(5.6, -37, .8, .9, '#fff');
 }

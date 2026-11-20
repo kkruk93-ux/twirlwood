@@ -4,8 +4,9 @@ An original, colorful fairy-tale platformer for phones and desktop browsers. Run
 
 **Play:** https://kkruk93-ux.github.io/twirlwood/
 
-## Version 1.0.0
-- Low-poly 3D (three.js r187, vendored, MIT) with a PS1-style look: low-res rendering, optional vertex snapping, fog.
+## Version 1.1.0
+- Low-poly 3D (three.js r187, vendored, MIT) with a retro 32-bit look: low-res rendering, procedural pixel textures (nearest filtering), Gouraud lighting, ordered dithering and vertex snapping (optional), per-world coloured fog, gradient skies, layered backgrounds (mountains, castles, waterfalls), swaying foliage.
+- Swooping camera: locked on the hero, turns with the path through bends, look-ahead, pulls back on jumps/falls, wider framing in boss arenas.
 - The camera follows the hero along a winding 3D path (CatmullRomCurve3) that turns, rises and drops. Movement stays on the path.
 - 3 worlds × 5 levels: Lanternleaf Forest, Glimmerfrost Caverns, Skyspire Castle. Each world ends with a boss (Bramblecrown, Frost Warden, Storm Rook).
 - Two switchable heroes: **Wren** (double jump, dash, backflip) and **Bobble** (glide, hat swing, ground-pound).

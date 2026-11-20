@@ -2,7 +2,7 @@
 // draws low-poly scenery, characters and effects with a PS1-like look.
 import * as THREE from 'three';
 import { T, ROWS } from './levels.js';
-import { makeWren, makeBobble, animateHero, makeEnemy, makeBoss, makeCoin, makeGem, makeHeart, makeLife, mat, patchPSX, setSnap, meshOf, box, ico, cone, cyl } from './models.js';
+import { makeWren, makeBobble, animateHero, makeEnemy, makeBoss, makeCoin, makeGem, makeHeart, makeLife, mat, patchPSX, setSnap, setTime, meshOf, box, ico, cone, cyl } from './models.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const D = 1.0;          // half width of the path
@@ -42,30 +42,78 @@ export class World3D {
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
   }
 
-  makeNoiseTex() {
-    const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
-    for (let i = 0; i < 32; i++) for (let j = 0; j < 32; j++) { const v = 200 + Math.floor(Math.random() * 55); x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(i, j, 1, 1); }
-    x.fillStyle = 'rgba(0,0,0,.12)'; for (let i = 0; i < 6; i++) x.fillRect(Math.random() * 32, Math.random() * 32, 4, 3);
-    const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
-  }
+  makeNoiseTex() { return this.pixTex('noise', 0xffffff); }
   makeCrateTex() {
     const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
-    x.fillStyle = '#d89a4a'; x.fillRect(0, 0, 32, 32); x.fillStyle = '#a86a2a'; x.fillRect(0, 0, 32, 3); x.fillRect(0, 29, 32, 3); x.fillRect(0, 0, 3, 32); x.fillRect(29, 0, 3, 32);
+    x.fillStyle = '#d89a4a'; x.fillRect(0, 0, 32, 32);
+    for (let i = 0; i < 90; i++) { x.fillStyle = Math.random() < 0.5 ? '#c4863a' : '#e8aa5a'; x.fillRect(Math.random() * 32 | 0, Math.random() * 32 | 0, 3, 1); }
+    x.fillStyle = '#a86a2a'; x.fillRect(0, 0, 32, 3); x.fillRect(0, 29, 32, 3); x.fillRect(0, 0, 3, 32); x.fillRect(29, 0, 3, 32);
     x.strokeStyle = '#8a5020'; x.lineWidth = 3; x.beginPath(); x.moveTo(3, 3); x.lineTo(29, 29); x.moveTo(29, 3); x.lineTo(3, 29); x.stroke();
-    const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace; return t;
+    x.fillStyle = '#5a3a1a'; for (const [a, b] of [[4, 4], [26, 4], [4, 26], [26, 26]]) x.fillRect(a, b, 2, 2);
+    return this.texOf(c, false);
+  }
+  texOf(c, wrap = true) {
+    const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+    if (wrap) t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+  // Procedural 32x32 pixel textures (original, generated at runtime).
+  pixTex(kind, base, alt) {
+    const key = kind + base + '/' + alt; this._tex = this._tex || {};
+    if (this._tex[key]) return this._tex[key];
+    const S = 32, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), r = rng(key.length * 977 + base % 9973);
+    const B = new THREE.Color(base), A = new THREE.Color(alt ?? base);
+    const px = (i, j, col, k = 1) => { x.fillStyle = '#' + col.clone().multiplyScalar(k).getHexString(); x.fillRect(i, j, 1, 1); };
+    const fill = (col, v) => { for (let i = 0; i < S; i++) for (let j = 0; j < S; j++) px(i, j, col, 1 - v / 2 + r() * v); };
+    if (kind === 'noise') fill(B, 0.25);
+    else if (kind === 'grass') { // grass top with blades and little flowers
+      fill(B, 0.22);
+      for (let n = 0; n < 70; n++) { const i = r() * S | 0, j = r() * S | 0; px(i, j, B, 1.25); px(i, (j + 1) % S, B, 0.75); }
+      for (let n = 0; n < 4; n++) px(r() * S | 0, r() * S | 0, A, 1.2);
+    } else if (kind === 'dirt') { // soil with pebbles and a grassy fringe on top
+      fill(B, 0.2);
+      for (let n = 0; n < 16; n++) { const i = r() * S | 0, j = r() * S | 0; px(i, j, A, 1.3); px(i + 1, j, A, 1.1); px(i, j + 1, A, 0.8); }
+      for (let n = 0; n < 40; n++) px(r() * S | 0, r() * S | 0, B, 0.6);
+    } else if (kind === 'stone') { // irregular cobbles
+      fill(B, 0.12);
+      for (let row = 0; row < 4; row++) { const y0 = row * 8; let x0 = (row % 2) * 5;
+        for (let k = 0; k < 4; k++) { const w = 6 + (r() * 4 | 0), sh = 0.85 + r() * 0.3;
+          for (let i = 0; i < w; i++) for (let j = 1; j < 7; j++) px((x0 + i) % S, y0 + j, B, sh * (j === 1 ? 1.2 : j === 6 ? 0.8 : 1) * (0.95 + r() * 0.1));
+          x0 += w + 1; } }
+      x.fillStyle = '#' + B.clone().multiplyScalar(0.45).getHexString(); for (let row = 0; row < 4; row++) x.fillRect(0, row * 8, S, 1);
+    } else if (kind === 'brick') {
+      fill(B, 0.1);
+      const mortar = '#' + A.getHexString();
+      for (let row = 0; row < 4; row++) { x.fillStyle = mortar; x.fillRect(0, row * 8 + 7, S, 1);
+        for (let k = 0; k < 3; k++) x.fillRect(((row % 2) * 6 + k * 11) % S, row * 8, 1, 7);
+        for (let n = 0; n < 6; n++) px(r() * S | 0, row * 8 + (r() * 6 | 0), B, 0.8); }
+    } else if (kind === 'ice') {
+      fill(B, 0.08);
+      for (let n = 0; n < 5; n++) { let i = r() * S, j = r() * S; const dx = r() - 0.5, dy = r() - 0.5; for (let k = 0; k < 10; k++) { px(i & 31, j & 31, B, 1.15); i += dx * 2; j += dy * 2; } }
+      for (let n = 0; n < 8; n++) px(r() * S | 0, r() * S | 0, new THREE.Color(0xffffff));
+    } else if (kind === 'wood') { // planks with grain and nails
+      fill(B, 0.08);
+      for (let j = 0; j < S; j++) { if (j % 8 === 7) { x.fillStyle = '#' + B.clone().multiplyScalar(0.55).getHexString(); x.fillRect(0, j, S, 1); continue; }
+        for (let i = 0; i < S; i++) if (Math.sin(i * 0.35 + j * 1.7 + (j >> 3) * 2) > 0.85) px(i, j, B, 0.82); }
+      for (let row = 0; row < 4; row++) { px(2, row * 8 + 3, new THREE.Color(0x333333)); px(29, row * 8 + 3, new THREE.Color(0x333333)); }
+    } else if (kind === 'water') { // vertical streaks for waterfalls
+      fill(B, 0.1);
+      for (let i = 0; i < S; i++) { const o = r() * S | 0, l = 4 + (r() * 10 | 0); for (let k = 0; k < l; k++) px(i, (o + k) % S, new THREE.Color(0xffffff), 0.9); }
+    }
+    return (this._tex[key] = this.texOf(c));
   }
 
   // ---------- path ----------
   buildPath(len, seed) {
     const r = rng(seed * 7919 + 13);
-    const pts = []; let x = 0, z = 0, y = 0, a = 0, va = 0;
-    const n = Math.ceil((len + 60) / 9) + 2;
+    // Sweeping S-curves: the heading oscillates (never loops back), elevation rolls.
+    const pts = []; let x = 0, z = 0, y = 0, ph = r() * 6, amp = 1.05 + r() * 0.25;
+    const n = Math.ceil((len + 60) / 8) + 2, e1 = r() * 6, e2 = r() * 6;
     for (let i = 0; i < n; i++) {
       pts.push(new THREE.Vector3(x, y, z));
-      va = va * 0.6 + (r() - 0.5) * 0.5; va = Math.max(-0.32, Math.min(0.32, va));
-      if (i > 2) a += va;
-      x += Math.cos(a) * 9; z += Math.sin(a) * 9;
-      if (i > 3) y = Math.max(-5, Math.min(7, y + (r() - 0.5) * 2.6));
+      ph += 0.3 + r() * 0.22;
+      const a = i < 3 ? 0 : amp * Math.sin(ph);
+      x += Math.cos(a) * 8; z += Math.sin(a) * 8;
+      y = Math.min(1, Math.max(0, (i - 3) / 4)) * (5.5 * Math.sin(i * 0.2 + e1) + 2.2 * Math.sin(i * 0.47 + e2));
     }
     const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
     const total = curve.getLength();
@@ -118,7 +166,7 @@ export class World3D {
     this.g = game; const w = game.world;
     this.buildPath(game.W + 10, game.levelIndex + 1);
     const fogCol = new THREE.Color(w.fog);
-    this.scene.fog = new THREE.Fog(fogCol, 22, w.cave ? 70 : 110);
+    this.scene.fog = new THREE.Fog(fogCol, w.cave ? 14 : 26, w.cave ? 75 : 125);
     this.renderer.setClearColor(fogCol);
     this.hemi.color.set(w.cave ? 0xbfd8ff : 0xffffff); this.hemi.groundColor.set(w.cave ? 0x303060 : 0x6a5a8a);
     this.hemi.intensity = w.cave ? 1.3 : 1.6;
@@ -134,11 +182,22 @@ export class World3D {
   makeSky(w) {
     const geo = new THREE.SphereGeometry(200, 16, 10), col = [], top = new THREE.Color(w.sky[0]), bot = new THREE.Color(w.sky[1]);
     const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) { const k = Math.max(0, Math.min(1, (pos.getY(i) + 40) / 200)); const c = bot.clone().lerp(top, k); col.push(c.r, c.g, c.b); }
+    const hor = new THREE.Color(w.fog);
+    for (let i = 0; i < pos.count; i++) { // 3-stop gradient: horizon haze -> lower sky -> zenith
+      const y = pos.getY(i) / 200, c = y < 0.08 ? hor.clone().lerp(bot, Math.max(0, (y + 0.15) / 0.23)) : bot.clone().lerp(top, Math.min(1, (y - 0.08) / 0.6));
+      col.push(c.r, c.g, c.b);
+    }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     this.sky = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
     this.sky.geometry.userData = {}; this.sky.userData.own = true; this.sky.renderOrder = -1;
     this.level.add(this.sky);
+    // sky clouds ride with the sky dome
+    const r = rng(w.music * 17 + 3), cm = new THREE.MeshBasicMaterial({ color: w.cave ? 0x8090d0 : 0xffffff, fog: false, transparent: true, opacity: w.cave ? 0.25 : 0.85 });
+    for (let i = 0; i < (w.cave ? 8 : 14); i++) {
+      const a = r() * 6.283, el = 0.12 + r() * 0.35, cl = new THREE.Group();
+      for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(6 + r() * 6, 0), cm); b.userData.own = true; b.position.set(k * 7 - 10, r() * 3, r() * 4); b.scale.y = 0.45; cl.add(b); }
+      cl.position.set(Math.cos(a) * 170 * Math.cos(el), Math.sin(el) * 170, Math.sin(a) * 170 * Math.cos(el)); cl.lookAt(0, cl.position.y, 0); this.sky.add(cl);
+    }
     if (!w.cave) {
       const sun = new THREE.Mesh(new THREE.CircleGeometry(12, 10), new THREE.MeshBasicMaterial({ color: w.sky3 ? 0xfff4d0 : 0xfffbe0, fog: false }));
       sun.userData.own = true; this.sunDisc = sun; this.level.add(sun);
@@ -146,8 +205,9 @@ export class World3D {
   }
 
   buildTerrain(game) {
-    const w = game.world, pos = [], col = [], uv = [];
-    const cGrass = new THREE.Color(w.grass), cDirt = new THREE.Color(w.dirt), cDirt2 = new THREE.Color(w.dirt2), cIce = new THREE.Color(0xd8f4ff);
+    const w = game.world, B = { top: [[], [], []], side: [[], [], []] }; let pos, col, uv;
+    const use = (k) => { [pos, col, uv] = B[k]; };
+    const cGrass = new THREE.Color(0xffffff), cDirt = new THREE.Color(0xf2f2f2), cDirt2 = new THREE.Color(0x707070), cIce = new THREE.Color(0xd8f4ff);
     const fa = { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() }, fb = { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() };
     const P = (f, h, z) => [f.p.x + f.n.x * z, f.p.y + h, f.p.z + f.n.z * z];
     const quad = (a, b, c, d, ca, cb, uvs) => { // a b c d counter-clockwise
@@ -167,11 +227,12 @@ export class World3D {
         const ice = game.tile(cx, r0) === 5;
         const top = ice ? cIce : cGrass, side = cDirt, side2 = r1 === ROWS - 1 ? cDirt2 : cDirt;
         if (!isS(cx, r0 - 1)) {
-          quad(P(fa, hT, D), P(fb, hT, D), P(fb, hT, -D), P(fa, hT, -D), top, top, [cx, 0, cx + 1, 0, cx + 1, 1, cx, 1]);
+          use('top'); quad(P(fa, hT, D), P(fb, hT, D), P(fb, hT, -D), P(fa, hT, -D), top, top, [cx, 0, cx + 1, 0, cx + 1, 1, cx, 1]);
           const lip = ice ? cIce : cGrass.clone().multiplyScalar(0.85);
           quad(P(fa, hT - 0.22, D + 0.02), P(fb, hT - 0.22, D + 0.02), P(fb, hT, D + 0.02), P(fa, hT, D + 0.02), lip, lip, [cx, 0, cx + 1, 0, cx + 1, 0.2, cx, 0.2]);
         }
         // front (camera side) and back
+        use('side');
         quad(P(fa, hB, D), P(fb, hB, D), P(fb, hT, D), P(fa, hT, D), side2, side, [cx, hB, cx + 1, hB, cx + 1, hT, cx, hT]);
         quad(P(fb, hB, -D), P(fa, hB, -D), P(fa, hT, -D), P(fb, hT, -D), side2, side, [cx, hB, cx + 1, hB, cx + 1, hT, cx, hT]);
         // ends
@@ -182,29 +243,45 @@ export class World3D {
         }
       }
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    geo.computeVertexNormals();
-    const m = patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true, map: this.texNoise, flatShading: true }));
-    const mesh = new THREE.Mesh(geo, m); mesh.userData.own = true; this.level.add(mesh);
+    const topTex = w.cave ? this.pixTex('ice', 0xcfeeff) : w.sky3 ? this.pixTex('stone', 0xf0e8ff) : this.pixTex('grass', w.grass, 0xffe066);
+    const sideTex = w.cave ? this.pixTex('stone', 0x7080c0) : w.sky3 ? this.pixTex('brick', 0xc8b0e0, 0x8a78b0) : this.pixTex('dirt', w.dirt, 0xb89a7a);
+    const iceTex = this.pixTex('ice', 0xd8f4ff);
+    for (const [k, tex] of [['top', topTex], ['side', sideTex]]) {
+      const [p, c, u] = B[k]; if (!p.length) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2));
+      geo.computeVertexNormals();
+      const m = patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }));
+      const mesh = new THREE.Mesh(geo, m); mesh.userData.own = true; this.level.add(mesh);
+    }
+    this.iceTex = iceTex;
   }
 
   // merged static geometry helper: list of [geometry, color, matrix]
-  merge(list) {
-    const pos = [], col = [], nor = [];
-    const c = new THREE.Color(), nm = new THREE.Matrix3();
-    for (const [g0, color, mtx] of list) {
-      const g = g0.index ? g0.toNonIndexed() : g0.clone(); g.applyMatrix4(mtx); g.computeVertexNormals();
+  merge(list) { // entries: [geometry, color, matrix, sway weight]
+    const pos = [], col = [], nor = [], uvs = [], sw = [];
+    const c = new THREE.Color();
+    for (const [g0, color, mtx, wgt = 0] of list) {
+      const g = g0.index ? g0.toNonIndexed() : g0.clone();
+      const lp = g.attributes.position; let y0 = Infinity, y1 = -Infinity;
+      for (let i = 0; i < lp.count; i++) { y0 = Math.min(y0, lp.getY(i)); y1 = Math.max(y1, lp.getY(i)); }
+      const ly = [...Array(lp.count)].map((_, i) => (lp.getY(i) - y0) / Math.max(0.001, y1 - y0));
+      g.applyMatrix4(mtx); g.computeVertexNormals();
       c.set(color);
-      const p = g.attributes.position, n = g.attributes.normal;
-      for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b); }
+      const p = g.attributes.position, n = g.attributes.normal, u = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) {
+        pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b);
+        uvs.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0); sw.push(wgt * (0.35 + 0.65 * ly[i]));
+      }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setAttribute('aSway', new THREE.Float32BufferAttribute(sw, 1));
     return geo;
   }
   placeMatrix(px, py, z = 0, scale = 1, yaw = 0, upright = false) {
@@ -213,15 +290,17 @@ export class World3D {
   }
 
   buildStatic(game) {
-    const w = game.world, list = [];
+    const w = game.world, list = [], planks = [];
     const plankG = box(0.98, 0.22, 1.7), spikeG = cone(0.13, 0.45, 4), cloudG = ico(0.5, 0);
     for (let cx = 0; cx < game.W; cx++) for (let cy = 0; cy < ROWS; cy++) {
       const t = game.tile(cx, cy), x = cx * T + 15, y = cy * T;
-      if (t === 2) { const m = this.placeMatrix(x, y + 3.3); list.push([plankG, w.plank, m]); }
+      if (t === 2) { const m = this.placeMatrix(x, y + 3.3); planks.push([plankG, 0xffffff, m]); }
       else if (t === 3) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) list.push([spikeG, j === 1 ? 0xe0e0f0 : 0xb0b0d0, this.placeMatrix(cx * T + 5 + i * 10, y + T - 6.5, -0.6 + j * 0.6)]);
       else if (t === 6) for (let i = 0; i < 3; i++) { const m = this.placeMatrix(cx * T + 8 + i * 7, y + 10, -0.5 + i * 0.5, 0.9 + (i % 2) * 0.3); list.push([cloudG, 0xffffff, m]); }
     }
     if (list.length) { const mesh = new THREE.Mesh(this.merge(list), patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }))); mesh.userData.own = true; this.level.add(mesh); }
+    this.woodM = patchPSX(new THREE.MeshLambertMaterial({ map: this.pixTex('wood', w.plank) }));
+    if (planks.length) { const mesh = new THREE.Mesh(this.merge(planks), this.woodM); mesh.userData.own = true; this.level.add(mesh); }
     // crates are separate so they can break
     this.crates = new Map();
     const crateM = patchPSX(new THREE.MeshLambertMaterial({ map: this.texCrate })), crateG = box(0.95, 0.95, 0.95);
@@ -268,17 +347,20 @@ export class World3D {
       banner: () => [[cyl(0.05, 0.05, 2.4, 4), 0x8a6a4a, 0, 1.2, 0], [box(0.04, 0.8, 0.6), 0xe8414e, 0, 1.9, 0.3]],
     };
     const lists = {};
+    const SWAY = { tree: 1, pine: 0.55, flower: 1.2, bush: 0.7, icepine: 0.45, banner: 1.4, shroom: 0.25 };
     const add = (kind, px, z, s, yaw, hOff = 0) => {
-      const parts = kinds[kind]();
+      const parts = kinds[kind](), sw = SWAY[kind] || 0;
       const base = new THREE.Object3D(); this.map(px, 300 - hOff * T, z, base.position); base.rotation.y = yaw; base.scale.setScalar(s); base.updateMatrix();
-      for (const [g, c, x, y, zz, sx = 1, sy = 1, rx = 0] of parts) {
+      parts.forEach(([g, c, x, y, zz, sx = 1, sy = 1, rx = 0], i) => {
         const lm = new THREE.Matrix4().compose(new THREE.Vector3(x, y, zz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), new THREE.Vector3(sx, sy, sx));
-        (lists[c] = lists[c] || []).push([g, c, base.matrix.clone().multiply(lm)]);
-      }
+        (lists[c] = lists[c] || []).push([g, c, base.matrix.clone().multiply(lm), i > 0 ? sw : 0]);
+      });
     };
     // avoid placing scenery on top of the path itself
-    const samples = []; for (let u = 0; u < this.path.total; u += 2) { const f = this.frame(u, { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() }); samples.push(f.p.clone()); }
-    const clear = (v, rad) => { for (const s of samples) { const dx = s.x - v.x, dz = s.z - v.z; if (dx * dx + dz * dz < rad * rad) return false; } return true; };
+    const samples = [], camS = []; for (let u = 0; u < this.path.total; u += 2) { const f = this.frame(u, { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() }); samples.push(f.p.clone()); for (const d of [4, 7, 10, 13]) camS.push(f.p.clone().addScaledVector(f.n, d)); }
+    // keep scenery off the track and out of the camera corridor (between camera and hero)
+    const clear = (v, rad) => { for (const s of samples) { const dx = s.x - v.x, dz = s.z - v.z; if (dx * dx + dz * dz < rad * rad) return false; }
+      const rc = Math.min(rad, 4) + 1.5; for (const s of camS) { const dx = s.x - v.x, dz = s.z - v.z; if (dx * dx + dz * dz < rc * rc) return false; } return true; };
     const v = new THREE.Vector3();
     for (let px = -120; px < game.pxW + 300; px += 30) {
       const n = (w.sky3 ? 2 : 3) * q;
@@ -293,16 +375,56 @@ export class World3D {
       }
       if (r() < 0.25 * q && !w.sky3) { const kind = w.cave ? 'crystal' : 'flower'; this.map(px, 300, 2.2 + r() * 2, v); if (clear(v, 1.8)) add(kind, px, 2.2 + r() * 1.5, w.cave ? 0.3 : 0.6, r() * 6, 0); }
     }
-    // far silhouettes for depth
-    const farG = w.sky3 ? ico(1, 1) : cone(1, 1, 6);
-    for (let px = -200; px < game.pxW + 600; px += 160) {
-      const z = -(45 + r() * 50); this.map(px, 300, z, v); if (!clear(v, 30)) continue;
-      const s = 8 + r() * 14, base = new THREE.Object3D(); base.position.copy(v); base.position.y += w.sky3 ? -14 : -2;
-      base.scale.set(s * (w.sky3 ? 1.6 : 1), s * (w.sky3 ? 0.6 : 1.4), s); base.updateMatrix();
-      (lists['far'] = lists['far'] || []).push([farG, w.far, base.matrix.clone()]);
+    // layered background: far mountains / spires, mid hills, distant castles, waterfalls
+    const push = (g, c, m4) => (lists['bg' + c] = lists['bg' + c] || []).push([g, c, m4, 0]);
+    const at = (px, z, y, sx, sy, sz, yaw = 0) => { const o = new THREE.Object3D(); this.map(px, 300, z, o.position); o.position.y += y; o.rotation.y = yaw; o.scale.set(sx, sy, sz); o.updateMatrix(); return o.matrix; };
+    const farC = new THREE.Color(w.far), snow = w.sky3 ? 0xffffff : w.cave ? 0x9fb8ff : 0xf4f8ff;
+    const mount = cone(1, 1, 7), hill = ico(1, 1), cap = cone(1, 1, 7);
+    for (let px = -200; px < game.pxW + 600; px += 120) { // far layer
+      const z = -(60 + r() * 45); this.map(px, 300, z, v); if (!clear(v, 40)) continue;
+      const s2 = 12 + r() * 16, hgt = s2 * (w.cave ? 2.2 : 1.5);
+      if (w.sky3) { push(hill, farC.getHex(), at(px, z, -18, s2 * 1.6, s2 * 0.5, s2)); push(cone(1, 1, 6), 0xffffff, at(px, z, -18 - s2 * 0.6, s2 * 1.2, s2 * 0.9, s2 * 0.8, Math.PI)); }
+      else {
+        push(mount, farC.getHex(), at(px, z, -6 + hgt / 2, s2, hgt, s2, r() * 3));
+        if (!w.cave) push(cap, snow, at(px, z, -6 + hgt - hgt * 0.14, s2 * 0.29, hgt * 0.29, s2 * 0.29, 0));
+        else push(cone(1, 1, 6), farC.clone().multiplyScalar(1.2).getHex(), at(px, z, 40 - hgt * 0.4, s2 * 0.6, hgt * 0.8, s2 * 0.6, Math.PI)); // ceiling stalactites
+      }
+    }
+    const midC = farC.clone().lerp(new THREE.Color(w.grass), 0.35).getHex();
+    for (let px = -150; px < game.pxW + 400; px += 70) { // mid hills
+      const z = -(32 + r() * 14); this.map(px, 300, z, v); if (!clear(v, 22)) continue;
+      const s2 = 6 + r() * 8; push(hill, midC, at(px, z, w.sky3 ? -12 : -4, s2 * 1.4, s2 * 0.7, s2));
+    }
+    const castle = (px, z, y, sc, col, roof) => {
+      const parts = [[box(6, 3, 1.2), 0, 1.5, 0], [cyl(0.9, 1, 6, 8), -3, 3, 0], [cyl(0.9, 1, 6, 8), 3, 3, 0], [cyl(1.2, 1.3, 9, 8), 0, 4.5, -1]];
+      const roofs = [[-3, 7.1, 0, 1.2, 2.2], [3, 7.1, 0, 1.2, 2.2], [0, 10.5, -1, 1.6, 3]];
+      const m0 = at(px, z, y, sc, sc, sc, r() * 0.6 - 0.3);
+      for (const [g, x, yy, zz] of parts) push(g, col, m0.clone().multiply(new THREE.Matrix4().makeTranslation(x, yy, zz)));
+      for (const [x, yy, zz, rr, h] of roofs) push(cone(rr, h, 8), roof, m0.clone().multiply(new THREE.Matrix4().makeTranslation(x, yy, zz)));
+      for (let i = -2; i <= 2; i++) push(box(0.6, 0.6, 1.3), col, m0.clone().multiply(new THREE.Matrix4().makeTranslation(i * 1.2, 3.3, 0)));
+    };
+    const nCastle = w.sky3 ? 6 : w.cave ? 0 : 2;
+    for (let i = 0; i < nCastle; i++) { const px = (i + 0.5) / nCastle * game.pxW + r() * 200, z = -(45 + r() * 25); this.map(px, 300, z, v); if (!clear(v, 18)) continue;
+      castle(px, z, w.sky3 ? -8 : 2 + r() * 4, 0.9 + r() * 0.5, w.sky3 ? 0xf0e0ff : 0xb8b0c8, w.sky3 ? 0xe85a9a : 0x5a6ad8); }
+    // waterfalls (forest, caverns): cliff + scrolling water sheet + foam
+    this.falls = [];
+    if (!w.sky3) {
+      const waterTex = this.pixTex('water', w.cave ? 0x6ab0ff : 0x7ad0ff).clone(); waterTex.repeat.set(1, 3); waterTex.needsUpdate = true; this.waterTex = waterTex;
+      const wm = patchPSX(new THREE.MeshBasicMaterial({ map: waterTex, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+      const rockC = w.cave ? 0x4a5490 : 0x7a6a62;
+      for (let i = 0; i < 3; i++) {
+        const px = (i + 0.3 + r() * 0.4) / 3 * game.pxW, z = -(30 + r() * 10); this.map(px, 300, z, v); if (!clear(v, 16)) continue;
+        const hgt = 16 + r() * 6;
+        push(box(5, hgt, 3), rockC, at(px, z - 1.6, -4 + hgt / 2, 1, 1, 1));
+        const sheet = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hgt), wm); sheet.userData.own = true;
+        this.map(px, 300, z, sheet.position); sheet.position.y += -4 + hgt / 2; this.orient(sheet, px); sheet.rotateY(-Math.PI / 2);
+        this.level.add(sheet);
+        for (let k = 0; k < 4; k++) push(ico(0.9, 0), 0xffffff, at(px + (k - 1.5) * 18, z + 0.5, -3.6, 1, 0.6, 1));
+        this.falls.push({ px, z });
+      }
     }
     const all = Object.values(lists).flat();
-    if (all.length) { const mesh = new THREE.Mesh(this.merge(all), patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }))); mesh.userData.own = true; this.level.add(mesh); }
+    if (all.length) { const mesh = new THREE.Mesh(this.merge(all), patchPSX(new THREE.MeshLambertMaterial({ vertexColors: true }), true)); mesh.userData.own = true; this.level.add(mesh); }
     // shared ground plane far below for cave/forest depth
     if (!w.sky3) {
       const pl = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), mat(new THREE.Color(w.far).multiplyScalar(0.55).getHex(), {})); pl.rotation.x = -Math.PI / 2; pl.position.y = -8; pl.userData.own = true;
@@ -320,7 +442,7 @@ export class World3D {
     for (const k of game.coins) { k.mesh = makers[k.kind](); this.level.add(k.mesh); }
     for (const pl of game.plats) {
       const wdt = pl.w / T;
-      pl.mesh = meshOf(box(wdt * 0.98, 0.3, 1.6), pl.kind === 'move' ? 0x8ff0c8 : 0xe8c890);
+      pl.mesh = new THREE.Mesh(box(wdt * 0.98, 0.3, 1.6), pl.kind === 'move' ? (this.moveM = this.moveM || patchPSX(new THREE.MeshLambertMaterial({ map: this.pixTex('wood', 0x8ff0c8) }))) : (this.crumbM = this.crumbM || patchPSX(new THREE.MeshLambertMaterial({ map: this.pixTex('wood', 0xe8c890) }))));
       this.level.add(pl.mesh);
     }
     this.shotMeshes = [];
@@ -341,6 +463,8 @@ export class World3D {
   update(game, dt) {
     if (!this.path) return;
     const g = game;
+    setTime(g.t);
+    if (this.waterTex) this.waterTex.offset.y = (g.t * 1.6) % 1;
     // events from the simulation
     for (const ev of g.events) {
       if (ev.type === 'burst') for (let i = 0; i < ev.n; i++) { const a = Math.random() * 6.283, s = ev.sp * (0.3 + Math.random() * 0.7); this.spawn(ev.x, ev.y, Math.cos(a) * s, Math.sin(a) * s, 0.4 + Math.random() * 0.4, ev.col); }
@@ -359,7 +483,7 @@ export class World3D {
     this.map(p.x + p.w / 2, p.y + p.h, 0, hero.root.position);
     this.orient(hero.root, p.x + p.w / 2, p.face);
     hero.root.rotateY(p.face * -0.45); // turn slightly toward the camera
-    animateHero(hero, { t: g.t, run: p.onGround ? Math.min(1, Math.abs(p.vx) / 150) : 0, air: !p.onGround, glide: p.gliding, spin: p.spinT, pound: p.pounding, squash: p.squash, attack: p.attackT, dance: g.done });
+    animateHero(hero, { t: g.t, run: p.onGround ? Math.min(1, Math.abs(p.vx) / 150) : 0, air: !p.onGround, vy: p.vy, dash: p.dashT > 0, glide: p.gliding, spin: p.spinT, pound: p.pounding, squash: p.squash, attack: p.attackT, dance: g.done });
     // blob shadow
     const sy = this.groundBelow(g, p);
     if (sy !== null) { this.shadow.visible = true; this.map(p.x + p.w / 2, sy - 0.5, 0, this.shadow.position); this.shadow.position.y += 0.03; const d = (sy - (p.y + p.h)) / T; this.shadow.scale.setScalar(Math.max(0.3, 1 - d * 0.12)); } else this.shadow.visible = false;
@@ -413,20 +537,43 @@ export class World3D {
     return null;
   }
 
+  // Swooping side camera: locked on the hero, turns with the path tangent, rises and
+  // falls with the terrain, leads in the run direction, pulls back on jumps/falls and
+  // frames boss arenas wider. Hard clamps keep the hero in view at all times.
   updateCamera(g, dt) {
-    const p = g.p, targetU = (p.x + p.w / 2) / T + 4 + p.face * 1.6 + p.vx / T * 0.25;
-    const hp = (300 - (p.y + p.h / 2)) / T;
-    const k = this.snapCam ? 1 : Math.min(1, dt * 3.2);
-    this.camU += (targetU - this.camU) * k;
-    const targetH = Math.max(0.5, Math.min(7, hp));
-    this.camH += (targetH - this.camH) * (this.snapCam ? 1 : Math.min(1, dt * 2.2));
-    this.snapCam = false;
-    const f = this.frame(this.camU, this._fc || (this._fc = { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() }));
-    const cam = this.camera, dist = 11.5;
-    cam.position.copy(f.p).addScaledVector(f.n, dist).addScaledVector(UP, this.camH + 2.6);
+    const p = g.p, cx = p.x + p.w / 2, cy = p.y + p.h / 2, V = THREE.Vector3;
+    const c = this._cam || (this._cam = { la: 0, n: new V(), t: new V(), focus: new V(), dist: 10, hgt: 2.4, boss: 0, f: { p: new V(), t: new V(), n: new V() }, pl: new V(), tg: new V() });
+    const snap = this.snapCam; this.snapCam = false;
+    const k = (rate) => (snap ? 1 : 1 - Math.exp(-rate * dt));
+    // look-ahead in the facing / movement direction
+    const laT = p.face * 2.2 + Math.max(-1.5, Math.min(1.5, p.vx / T * 0.12));
+    c.la = snap ? laT : c.la + (laT - c.la) * k(2.2);
+    const pl = this.map(cx, cy, 0, c.pl);
+    // camera orientation follows the path tangent a bit ahead of the hero (orbits around bends)
+    const f = this.frame(cx / T + 4 + c.la * 0.8, c.f);
+    if (snap) { c.n.copy(f.n); c.t.copy(f.t); } else { c.n.lerp(f.n, k(3.2)).normalize(); c.t.lerp(f.t, k(3.2)).normalize(); }
+    // boss arenas: wider, higher, dramatic low angle
+    const boss = g.boss && g.boss.alive && (g.boss.awake || Math.abs(g.boss.x - p.x) < 14 * T) ? 1 : 0;
+    c.boss += (boss - c.boss) * k(1.5);
+    const fall = Math.max(0, Math.min(1, p.vy / 900)), air = p.onGround ? 0 : 1;
+    const distT = 10 + air * 1.0 + fall * 2.6 + Math.min(1, Math.abs(p.vx) / 400) * 0.8 + c.boss * 4.5;
+    c.dist += (distT - c.dist) * k(1.8);
+    const hT = 2.3 + fall * 1.6 + c.boss * 1.2; c.hgt += (hT - c.hgt) * k(1.8);
+    // focus point: hero + horizontal lead; vertical follows faster when falling
+    const tg = c.tg.copy(pl).addScaledVector(new V(c.t.x, 0, c.t.z).normalize(), c.la + c.boss * p.face * 0.5);
+    tg.y = pl.y + 0.4 - fall * 1.2 + c.boss * 0.6;
+    if (snap) c.focus.copy(tg);
+    else { const kh = k(7), kv = k(p.vy > 300 ? 9 : 4.5); c.focus.x += (tg.x - c.focus.x) * kh; c.focus.z += (tg.z - c.focus.z) * kh; c.focus.y += (tg.y - c.focus.y) * kv; }
+    // never lose the hero: clamp focus to a box around them
+    const dx = c.focus.x - pl.x, dz = c.focus.z - pl.z, dh = Math.hypot(dx, dz), maxH = 3.4 + c.boss * 2;
+    if (dh > maxH) { c.focus.x = pl.x + dx / dh * maxH; c.focus.z = pl.z + dz / dh * maxH; }
+    c.focus.y = Math.max(pl.y - 2.2, Math.min(pl.y + 2.0, c.focus.y));
+    const cam = this.camera;
+    // slight offset back along the path so the track visibly sweeps into the distance
+    cam.position.copy(c.focus).addScaledVector(c.n, c.dist).addScaledVector(UP, c.hgt).addScaledVector(c.t, -p.face * 0.9 - c.boss * 1.5);
     if (g.shakeT > 0) { cam.position.x += (Math.random() - 0.5) * g.shakeT * 1.5; cam.position.y += (Math.random() - 0.5) * g.shakeT * 1.5; }
-    const look = this.tmpV.copy(f.p).addScaledVector(UP, this.camH + 0.6);
-    cam.lookAt(look);
+    cam.lookAt(c.focus);
+    const fovT = 50 + c.boss * 4 + fall * 4; if (Math.abs(cam.fov - fovT) > 0.05) { cam.fov += (fovT - cam.fov) * k(2); cam.updateProjectionMatrix(); }
     this.sky.position.copy(cam.position);
     if (this.sunDisc) { this.sunDisc.position.copy(cam.position).addScaledVector(f.n, -150).add(this.tmpV.set(f.t.x * 50, 60, f.t.z * 50)); this.sunDisc.lookAt(cam.position); }
   }
@@ -439,8 +586,8 @@ export class World3D {
     game.t += dt;
     this.update(game, dt);
     const u = (game.t * 2.5) % Math.max(10, game.W - 10) + 4;
-    const f = this.frame(u, this._fc);
-    this.camera.position.copy(f.p).addScaledVector(f.n, 13).addScaledVector(UP, 5);
+    const f = this.frame(u, this._fc || (this._fc = { p: new THREE.Vector3(), t: new THREE.Vector3(), n: new THREE.Vector3() }));
+    this.camera.position.copy(f.p).addScaledVector(f.n, 12).addScaledVector(UP, 4.5).addScaledVector(f.t, -3);
     this.camera.lookAt(this.tmpV.copy(f.p).addScaledVector(UP, 2).addScaledVector(f.t, 3));
     this.sky.position.copy(this.camera.position);
   }

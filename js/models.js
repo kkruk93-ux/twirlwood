@@ -3,21 +3,32 @@ import * as THREE from 'three';
 
 const matCache = new Map();
 export const psxShaders = [];
-export const psx = { snap: 0 }; // 0 = off, otherwise grid resolution
-export function patchPSX(m) {
+export const psx = { snap: 0, dither: 1, time: 0 }; // snap 0 = off, otherwise grid resolution
+const BAYER = `
+float bayer2(vec2 a) { return mod(a.x * 2.0 + a.y * 3.0, 4.0); }
+float bayer4(vec2 p) { return (4.0 * bayer2(mod(p, 2.0)) + bayer2(mod(floor(p * 0.5), 2.0))) / 16.0; }
+`;
+// PS1-style shader patch: vertex snapping, 15-bit colour with ordered dithering,
+// optional wind sway (needs an aSway attribute).
+export function patchPSX(m, sway = false) {
   m.onBeforeCompile = (sh) => {
-    sh.uniforms.uSnap = { value: psx.snap };
+    sh.uniforms.uSnap = { value: psx.snap }; sh.uniforms.uDither = { value: psx.dither }; sh.uniforms.uTime = { value: psx.time };
     psxShaders.push(sh);
-    sh.vertexShader = 'uniform float uSnap;\n' + sh.vertexShader.replace('#include project_vertex', '#include project_vertex\n if (uSnap > 0.0) { gl_Position.xy = floor(gl_Position.xy / gl_Position.w * uSnap + 0.5) / uSnap * gl_Position.w; }');
+    let vs = 'uniform float uSnap;\nuniform float uTime;\n' + (sway ? 'attribute float aSway;\n' : '') + sh.vertexShader;
+    if (sway) vs = vs.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed.x += sin(uTime * 1.9 + position.x * 0.45 + position.z * 0.3) * aSway * 0.16;\n transformed.z += cos(uTime * 1.5 + position.x * 0.3) * aSway * 0.1;');
+    sh.vertexShader = vs.replace('#include <project_vertex>', '#include <project_vertex>\n if (uSnap > 0.0) { gl_Position.xy = floor(gl_Position.xy / gl_Position.w * uSnap + 0.5) / uSnap * gl_Position.w; }');
+    sh.fragmentShader = 'uniform float uDither;\n' + BAYER + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n if (uDither > 0.5) { gl_FragColor.rgb = floor(gl_FragColor.rgb * 31.0 + bayer4(floor(gl_FragCoord.xy))) / 31.0; }');
   };
+  m.customProgramCacheKey = () => (sway ? 'psx-sway' : 'psx');
   return m;
 }
-export function setSnap(v) { psx.snap = v; for (const s of psxShaders) s.uniforms.uSnap.value = v; }
+export function setSnap(v) { psx.snap = v; psx.dither = v > 0 ? 1 : 0; for (const s of psxShaders) { s.uniforms.uSnap.value = v; s.uniforms.uDither.value = psx.dither; } }
+export function setTime(t) { psx.time = t; for (const s of psxShaders) s.uniforms.uTime.value = t; }
 export function mat(color, opts = {}) {
   const key = color + JSON.stringify(opts);
   if (!matCache.has(key)) {
     const m = opts.basic ? new THREE.MeshBasicMaterial({ color, transparent: !!opts.opacity, opacity: opts.opacity ?? 1, fog: opts.fog ?? true, side: opts.side ?? THREE.FrontSide })
-      : new THREE.MeshLambertMaterial({ color, flatShading: true, emissive: opts.emissive ?? 0x000000, transparent: !!opts.opacity, opacity: opts.opacity ?? 1, side: opts.side ?? THREE.FrontSide });
+      : new THREE.MeshLambertMaterial({ color, flatShading: !!opts.flat, emissive: opts.emissive ?? 0x000000, transparent: !!opts.opacity, opacity: opts.opacity ?? 1, side: opts.side ?? THREE.FrontSide });
     matCache.set(key, patchPSX(m));
   }
   return matCache.get(key);
@@ -47,10 +58,18 @@ export function makeWren() {
   const earR = m(cone(0.08, 0.26, 4), 0xf08a2e, 0.14, 0.27, -0.02); earR.rotation.z = -0.35; head.add(earR);
   head.add(m(box(0.06, 0.09, 0.03), 0x2a1a4a, -0.09, 0.0, 0.23)); head.add(m(box(0.06, 0.09, 0.03), 0x2a1a4a, 0.09, 0.0, 0.23));
   head.add(m(ico(0.04), 0xff9a7a, 0, -0.06, 0.25));
+  // extra detail: eye whites, fringe, belt, hands, cuffs, knees
+  const eyes = pivot(head, 0, 0, 0.215);
+  eyes.add(m(box(0.09, 0.12, 0.02), 0xffffff, -0.09, 0.0, 0)); eyes.add(m(box(0.09, 0.12, 0.02), 0xffffff, 0.09, 0.0, 0));
+  for (let i = -2; i <= 2; i++) { const f = m(cone(0.06, 0.16, 4), 0xf08a2e, i * 0.07, 0.17, 0.2); f.rotation.x = 1.9; head.add(f); }
+  body.add(m(cyl(0.245, 0.245, 0.07, 8), 0x6a3a1a, 0, 0.5, 0)); body.add(m(box(0.08, 0.07, 0.03), 0xffe066, 0, 0.5, 0.24));
+  armL.add(m(ico(0.075), 0xffd2b0, 0, -0.4, 0)); armR.add(m(ico(0.075), 0xffd2b0, 0, -0.4, 0));
+  armL.add(m(cyl(0.065, 0.065, 0.08, 6), 0x2cc9b0, 0, -0.04, 0)); armR.add(m(cyl(0.065, 0.065, 0.08, 6), 0x2cc9b0, 0, -0.04, 0));
+  legL.add(m(box(0.16, 0.06, 0.16), 0xff5a7a, 0, -0.36, 0)); legR.add(m(box(0.16, 0.06, 0.16), 0xff5a7a, 0, -0.36, 0));
   const scarf = pivot(body, 0, 0.94, -0.12);
   scarf.add(m(box(0.34, 0.08, 0.12), 0xff5a7a, 0, 0, 0.1));
   const tail = pivot(scarf, 0, 0, -0.05); tail.add(m(box(0.1, 0.06, 0.42), 0xff5a7a, 0, 0, -0.2));
-  return { root, body, legL, legR, armL, armR, head, tail, kind: 'wren' };
+  return { root, body, legL, legR, armL, armR, head, tail, eyes, kind: 'wren' };
 }
 
 export function makeBobble() {
@@ -72,23 +91,42 @@ export function makeBobble() {
   const cr = m(cone(0.13, 0.5, 5), 0x9b5cf0, 0, 0.22, 0); hatR.add(cr); hatR.rotation.z = -0.9;
   hatL.add(m(ico(0.07), 0xffd23a, 0, 0.5, 0)); hatR.add(m(ico(0.07), 0xffd23a, 0, 0.5, 0));
   head.add(m(cyl(0.24, 0.24, 0.1, 8), 0xe8414e, 0, 0.13, 0));
-  return { root, body, legL, legR, armL, armR, head, hatL, hatR, kind: 'bobble' };
+  const eyes = pivot(head, 0, 0.05, 0.19);
+  eyes.add(m(box(0.09, 0.12, 0.02), 0xffffff, -0.08, 0, 0)); eyes.add(m(box(0.09, 0.12, 0.02), 0xffffff, 0.08, 0, 0));
+  head.add(m(box(0.16, 0.03, 0.03), 0x8a2a3a, 0, -0.1, 0.2));
+  for (let i = 0; i < 6; i++) body.add(m(ico(0.05), i % 2 ? 0xffcc33 : 0x9b5cf0, Math.cos(i * 1.05) * 0.28, 0.96, Math.sin(i * 1.05) * 0.28));
+  body.add(m(ico(0.05), 0xffd23a, 0, 0.72, 0.33)); body.add(m(ico(0.05), 0xffd23a, 0, 0.55, 0.33));
+  armL.add(m(ico(0.08), 0xffffff, 0, -0.36, 0)); armR.add(m(ico(0.08), 0xffffff, 0, -0.36, 0));
+  legL.add(m(ico(0.045), 0xffd23a, 0, -0.38, 0.24)); legR.add(m(ico(0.045), 0xffd23a, 0, -0.38, 0.24));
+  return { root, body, legL, legR, armL, armR, head, hatL, hatR, eyes, kind: 'bobble' };
 }
 
 export function animateHero(h, s) {
-  // s: {t, run, air, glide, spin, pound, squash, attack, dance}
-  const sw = Math.sin(s.t * 15) * s.run;
-  h.legL.rotation.x = s.air ? -0.6 : sw * 0.9; h.legR.rotation.x = s.air ? 0.5 : -sw * 0.9;
-  h.armL.rotation.x = s.air ? -2.4 : -sw * 0.8; h.armR.rotation.x = s.air ? -2.4 : sw * 0.8;
-  h.armL.rotation.z = s.glide ? -1.4 : 0; h.armR.rotation.z = s.glide ? 1.4 : 0;
-  if (s.attack) { h.armR.rotation.x = -1.6 - Math.sin(s.attack * 20) * 1.2; h.body.rotation.y = s.attack * 18; } else h.body.rotation.y = 0;
-  const bob = s.run ? Math.abs(Math.sin(s.t * 15)) * 0.05 : Math.sin(s.t * 3) * 0.015;
+  // s: {t, run, air, vy, glide, spin, pound, squash, attack, dash, dance}
+  const ph = s.t * 14, sw = Math.sin(ph) * s.run;
+  if (s.air) {
+    // jump: tuck legs on the way up, reach down when falling
+    const up = Math.max(-1, Math.min(1, -(s.vy || 0) / 600));
+    h.legL.rotation.x = -0.4 - up * 0.6; h.legR.rotation.x = 0.3 + up * 0.3;
+    h.armL.rotation.x = -1.2 - up * 1.4; h.armR.rotation.x = -1.2 - up * 1.4;
+  } else {
+    h.legL.rotation.x = sw * 1.0; h.legR.rotation.x = -sw * 1.0;
+    h.armL.rotation.x = -sw * 0.9; h.armR.rotation.x = sw * 0.9;
+  }
+  h.armL.rotation.z = s.glide ? -1.4 : -0.12; h.armR.rotation.z = s.glide ? 1.4 : 0.12;
+  // lean into the run
+  h.body.rotation.x = s.run * 0.18;
+  if (s.dash) { h.body.rotation.x = 0.55; h.armL.rotation.x = 1.0; h.armR.rotation.x = 1.0; h.legL.rotation.x = 0.8; h.legR.rotation.x = 0.5; }
+  if (s.attack) { const k = s.attack / 0.3; h.armR.rotation.x = -1.6 - Math.sin(k * Math.PI) * 1.5; h.armL.rotation.x = -0.8; h.body.rotation.y = (1 - k) * Math.PI * 2; } else h.body.rotation.y = 0;
+  const bob = s.run && !s.air ? Math.abs(Math.sin(ph)) * 0.07 : (s.air ? 0 : Math.sin(s.t * 3) * 0.015);
   h.body.position.y = bob;
   h.body.scale.set(1 + s.squash * 0.25, 1 - s.squash * 0.25, 1 + s.squash * 0.25);
-  h.body.rotation.x = s.spin ? -s.spin * 18 : s.pound ? s.t * 30 : 0;
+  if (s.spin) h.body.rotation.x = -s.spin * 18; else if (s.pound) h.body.rotation.x = s.t * 30;
   if (s.dance) { h.body.rotation.y = s.t * 8; h.armL.rotation.x = -2.6; h.armR.rotation.x = -2.6; }
+  h.head.rotation.z = s.run && !s.air ? Math.sin(ph) * 0.06 : 0;
+  if (h.eyes) h.eyes.scale.y = (s.t % 3.1) < 0.12 ? 0.15 : 1; // blink
   if (h.tail) { h.tail.rotation.y = Math.sin(s.t * 12) * 0.4; h.tail.rotation.x = -0.3 - s.run * 0.5 + (s.air ? 0.6 : 0); }
-  if (h.hatL) { const f = Math.sin(s.t * 10) * (s.run ? 0.25 : 0.08); h.hatL.rotation.z = 0.9 + f; h.hatR.rotation.z = -0.9 - f; }
+  if (h.hatL) { const f = Math.sin(s.t * 10) * (s.run ? 0.25 : 0.08) + (s.air ? 0.25 : 0); h.hatL.rotation.z = 0.9 + f; h.hatR.rotation.z = -0.9 - f; }
 }
 
 // ---------- enemies ----------

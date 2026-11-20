@@ -1,6 +1,6 @@
 const KEY = 'twirlwood.v2';
 const DEFAULTS = () => ({
-  settings: { sfx: true, music: true, vibe: true, shake: true, size: 100, opacity: 55, invert: false, quality: 'medium', psx: true, autoQ: true },
+  settings: { sfx: true, music: true, vibe: true, shake: true, size: 100, opacity: 55, invert: false, quality: 'retro', psx: true, autoQ: true },
   char: 'wren', unlocked: 1, levels: {}, lives: 5,
 });
 export function load() {

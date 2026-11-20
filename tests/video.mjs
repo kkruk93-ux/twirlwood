@@ -11,10 +11,10 @@ const play = async (level, ch, ms, x) => {
   await p.evaluate(([l, ch, x]) => { window.__tw.start(l, ch); const g = window.__tw.game; if (x) { g.p.x = x; g.p.y = 120; window.__tw.w3d.snapCam = true; } g.bot = true; g.assist = true; }, [level, ch, x]);
   await p.waitForTimeout(ms);
 };
-await play(0, 'wren', 16000);
-await play(6, 'bobble', 9000, 1800);
-await play(11, 'wren', 9000, 1200);
-await play(4, 'bobble', 12000, 3700);
+await play(0, "wren", 14000);
+await play(6, "bobble", 7000, 1800);
+await play(11, "wren", 7000, 1200);
+await play(4, "bobble", 11000, 3700);
 await p.evaluate(() => { window.__tw.game.bot = false; });
 await ctx.close(); await b.close();
 console.log('errors', JSON.stringify(errors));

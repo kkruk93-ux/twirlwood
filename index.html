@@ -20,13 +20,13 @@
 
   <div id="hud" class="hidden" data-testid="hud">
     <div class="hud-left">
-      <div id="hud-char" class="hud-char"></div>
       <div id="hearts" data-testid="hearts"></div>
-      <div class="hud-pill"><span class="ico life"></span>×<span id="hud-lives">5</span></div>
-      <div class="hud-pill"><span class="ico coin"></span><span id="hud-coins" data-testid="hud-coins">0</span></div>
-      <div class="hud-pill"><span class="ico gem"></span><span id="hud-gems" data-testid="hud-gems">0/0</span></div>
+      <div class="hud-row"><div id="hud-char" class="hud-char"></div><span class="ico life"></span><span class="num" id="hud-lives">5</span></div>
     </div>
-    <div id="hud-level" class="hud-level"></div>
+    <div class="hud-right">
+      <div class="hud-row"><span class="ico coin"></span><span class="num" id="hud-coins" data-testid="hud-coins">0</span><span class="ico gem"></span><span class="num" id="hud-gems" data-testid="hud-gems">0/0</span></div>
+      <div id="hud-level" class="hud-level"></div>
+    </div>
   </div>
 
   <!-- Virtual gamepad -->
@@ -95,7 +95,7 @@
   <section id="scr-settings" class="screen dim hidden" data-testid="scr-settings">
     <h2>Settings</h2>
     <div class="settings">
-      <label>Graphics <select id="set-quality"><option value="low">Low (fast)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+      <label>Graphics <select id="set-quality"><option value="retro">Retro 4:3 (240p)</option><option value="low">Low (fast)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
       <label><input type="checkbox" id="set-psx"> Retro wobble (vertex snap)</label>
       <label><input type="checkbox" id="set-sfx"> Sound effects</label>
       <label><input type="checkbox" id="set-music"> Music</label>
@@ -119,7 +119,7 @@
       <li class="btc">Support (BTC): <code>bc1qd05h6spuj8dqf9rs9fu4re9rh4q6k0gflfqum8</code></li>
       <li><a href="./privacy.html">Privacy policy</a> · three.js (MIT)</li>
     </ul>
-    <p class="ver">Version 1.1.0</p>
+    <p class="ver">Version 1.2.0</p>
     <div class="menu row"><button class="btn" data-go="title">Back</button></div>
   </section>
 

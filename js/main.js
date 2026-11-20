@@ -18,7 +18,7 @@ try { w3d = new World3D($('#game')); } catch (e) {
 }
 const game = new Game({
   hud(g) {
-    $('#hearts').innerHTML = Array.from({ length: g.maxHearts }, (_, i) => `<span class="heart${i < g.hearts ? '' : ' empty'}">❤️</span>`).join('');
+    $('#hearts').innerHTML = Array.from({ length: g.maxHearts }, (_, i) => `<span class="heart${i < g.hearts ? '' : ' empty'}"><svg viewBox="0 0 16 16"><path d="M8 14.2 1.9 8.1A3.6 3.6 0 0 1 8 3.6a3.6 3.6 0 0 1 6.1 4.5Z"/></svg></span>`).join('');
     $('#hud-coins').textContent = g.coinCount;
     $('#hud-gems').textContent = `${g.gems.filter(Boolean).length}/${g.gemTotal}`;
     $('#hud-lives').textContent = g.lives;
@@ -146,7 +146,7 @@ $('#btn-reset').addEventListener('click', () => { if (confirm('Reset all progres
 // auto quality: drop to low if the device struggles
 const perf = { t: 0, frames: 0, slow: 0, reset() { this.t = 0; this.frames = 0; this.slow = 0; } };
 function checkPerf(dt) {
-  if (!data.settings.autoQ || data.settings.quality === 'low') return;
+  if (!data.settings.autoQ || data.settings.quality === 'low' || data.settings.quality === 'retro') return;
   perf.t += dt; perf.frames++;
   if (perf.t >= 2) { const fps = perf.frames / perf.t; perf.slow = fps < 40 ? perf.slow + 1 : 0; perf.t = 0; perf.frames = 0;
     if (perf.slow >= 2) { data.settings.quality = 'low'; store.save(data); applySettings(); toast('Graphics set to Low for smoother play'); } }

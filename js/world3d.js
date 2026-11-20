@@ -7,7 +7,7 @@ import { makeWren, makeBobble, animateHero, makeEnemy, makeBoss, makeCoin, makeG
 const UP = new THREE.Vector3(0, 1, 0);
 const D = 1.0;          // half width of the path
 const STEP = 0.25;      // LUT resolution in units
-const QUALITY = { low: { h: 240, decor: 0.45, snap: 120 }, medium: { h: 360, decor: 0.75, snap: 180 }, high: { h: 600, decor: 1, snap: 0 } };
+const QUALITY = { retro: { h: 240, decor: 0.8, snap: 160, aspect: 4 / 3 }, low: { h: 240, decor: 0.45, snap: 120 }, medium: { h: 360, decor: 0.75, snap: 180 }, high: { h: 600, decor: 1, snap: 0 } };
 
 function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 
@@ -35,7 +35,8 @@ export class World3D {
   }
 
   resize() {
-    const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight);
+    const h = Math.max(1, innerHeight), asp = QUALITY[this.quality].aspect, w = asp ? Math.min(innerWidth, Math.round(h * asp)) : Math.max(1, innerWidth);
+    this.canvas.style.width = w + 'px'; this.canvas.style.left = Math.round((innerWidth - w) / 2) + 'px'; document.documentElement.style.setProperty('--gx', Math.round((innerWidth - w) / 2) + 'px');
     const target = Math.min(QUALITY[this.quality].h, h * Math.min(2, devicePixelRatio || 1));
     this.renderer.setPixelRatio(target / h);
     this.renderer.setSize(w, h, false);
@@ -73,6 +74,7 @@ export class World3D {
       fill(B, 0.2);
       for (let n = 0; n < 16; n++) { const i = r() * S | 0, j = r() * S | 0; px(i, j, A, 1.3); px(i + 1, j, A, 1.1); px(i, j + 1, A, 0.8); }
       for (let n = 0; n < 40; n++) px(r() * S | 0, r() * S | 0, B, 0.6);
+      for (let n = 0; n < 3; n++) { let i = r() * S | 0; for (let j = 0; j < S; j++) { if (r() < 0.3) i = (i + (r() < 0.5 ? 1 : S - 1)) % S; px(i, j, B, 0.55); } } // roots
     } else if (kind === 'stone') { // irregular cobbles
       fill(B, 0.12);
       for (let row = 0; row < 4; row++) { const y0 = row * 8; let x0 = (row % 2) * 5;
@@ -100,6 +102,55 @@ export class World3D {
       for (let i = 0; i < S; i++) { const o = r() * S | 0, l = 4 + (r() * 10 | 0); for (let k = 0; k < l; k++) px(i, (o + k) % S, new THREE.Color(0xffffff), 0.9); }
     }
     return (this._tex[key] = this.texOf(c));
+  }
+
+  panorama(w) {
+    const W = 2048, H = 512, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    const r = rng(w.music * 101 + 7), TAU = Math.PI * 2;
+    const P = w.cave ? { sky: ['#070b22', '#1e2a66', '#33468a'], m: ['#3c4c96', '#2a3678', '#1c2558'], hi: '#8fb0ff', f: ['#1a2a5a', '#0f1838'], snow: '#bfe8ff' }
+      : w.sky3 ? { sky: ['#ff7ab8', '#ffb8c8', '#ffe8c0'], m: ['#f4d8ff', '#e0b0f0', '#c088d8'], hi: '#ffffff', f: ['#b070c8', '#8a50a8'], snow: '#ffffff' }
+      : { sky: ['#1f8cf0', '#5cc0ff', '#c8f0ff'], m: ['#c0b0f0', '#8a78d8', '#6a58b8'], hi: '#f0eaff', f: ['#1f7a3e', '#0f4a26'], snow: '#ffffff' };
+    // horizon at row ~ (45+0... ) : cylinder spans y -50..140 around the camera; horizon (y=0) is at 74% from the top
+    const hz = Math.round(H * 0.74);
+    const g = x.createLinearGradient(0, 0, 0, hz); g.addColorStop(0, P.sky[0]); g.addColorStop(0.6, P.sky[1]); g.addColorStop(1, P.sky[2]);
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    // periodic ridge function (seamless wrap)
+    const ridge = (amp, base, fr) => { const ph = [r() * TAU, r() * TAU, r() * TAU, r() * TAU]; return (i) => { const t = i / W * TAU; return base - amp * (0.5 * Math.sin(t * fr[0] + ph[0]) + 0.3 * Math.sin(t * fr[1] + ph[1]) + 0.2 * Math.abs(Math.sin(t * fr[2] + ph[2])) + 0.12 * Math.sin(t * fr[3] + ph[3])); }; };
+    // clouds / streaks
+    if (!w.cave) for (let k = 0; k < 26; k++) { const cx = r() * W, cy = r() * hz * 0.6, cw = 60 + r() * 160; x.fillStyle = `rgba(255,255,255,${0.35 + r() * 0.4})`;
+      for (let j = 0; j < 5; j++) { x.beginPath(); x.ellipse((cx + j * cw * 0.22) % W, cy + r() * 8, cw * 0.25, 9 + r() * 10, 0, 0, TAU); x.fill(); } }
+    else for (let k = 0; k < 140; k++) { x.fillStyle = r() < 0.5 ? '#8ff0ff' : '#d5b4ff'; x.fillRect(r() * W | 0, r() * hz | 0, 2, 2); }
+    // mountain ranges with lit and shaded faces
+    const layers = [[150, hz - 140, [3, 7, 11, 23]], [110, hz - 70, [4, 9, 15, 31]], [70, hz - 20, [5, 12, 19, 37]]];
+    layers.forEach(([amp, base, fr], li) => {
+      const f = ridge(amp, base, fr), col = new THREE.Color(P.m[li]), hi = new THREE.Color(P.hi), sn = new THREE.Color(P.snow);
+      for (let i = 0; i < W; i += 2) {
+        const y = f(i), sl = f(i + 2) - y; // slope: rising to the right = lit face
+        const lit = Math.max(-1, Math.min(1, -sl / 3));
+        const cc = col.clone().lerp(lit > 0 ? hi : new THREE.Color(0x201040), Math.abs(lit) * (lit > 0 ? 0.35 : 0.25));
+        x.fillStyle = '#' + cc.getHexString(); x.fillRect(i, y, 2, H - y);
+        if (li === 0 && !w.sky3 && y < base - amp * 0.35) { x.fillStyle = '#' + sn.clone().lerp(col, lit > 0 ? 0 : 0.35).getHexString(); x.fillRect(i, y, 2, Math.max(3, (base - amp * 0.35 - y) * 0.6)); }
+        if (r() < 0.06) { x.fillStyle = 'rgba(0,0,0,.12)'; x.fillRect(i, y + 6 + r() * 40, 2, 10 + r() * 30); }
+      }
+    });
+    // forest (or stalagmite / spire) silhouettes in two layers
+    for (let li = 0; li < 2; li++) {
+      const f = ridge(18, hz + 10 + li * 34, [2, 5, 9, 17]), col = P.f[li];
+      x.fillStyle = col; for (let i = 0; i < W; i += 4) { const y = f(i); x.fillRect(i, y + 30, 4, H); }
+      for (let i = 0; i < W; i += 7 + r() * 9) {
+        const y = f(i) + 30, hgt = (w.sky3 ? 70 : 40) + r() * (li ? 60 : 40), wd = hgt * (w.sky3 ? 0.18 : 0.32);
+        x.fillStyle = col; x.beginPath();
+        if (w.sky3) { x.rect(i - wd / 2, y - hgt * 0.7, wd, hgt); x.moveTo(i - wd * 0.8, y - hgt * 0.7); x.lineTo(i, y - hgt * 1.15); x.lineTo(i + wd * 0.8, y - hgt * 0.7); }
+        else if (w.cave) { x.moveTo(i - wd / 2, y + 5); x.lineTo(i, y - hgt); x.lineTo(i + wd / 2, y + 5); }
+        else for (let t = 0; t < 4; t++) { const ty = y - t * hgt * 0.22; x.moveTo(i - wd * (1 - t * 0.2), ty + 4); x.lineTo(i, ty - hgt * 0.38); x.lineTo(i + wd * (1 - t * 0.2), ty + 4); }
+        x.fill();
+        if (!w.cave && !w.sky3 && li === 0) { x.fillStyle = 'rgba(160,255,140,.18)'; x.fillRect(i - 2, y - hgt * 0.7, 2, hgt * 0.5); }
+      }
+    }
+    // haze near the horizon blends with the fog
+    const hzG = x.createLinearGradient(0, hz - 60, 0, H); hzG.addColorStop(0, 'rgba(255,255,255,0)'); hzG.addColorStop(1, '#' + new THREE.Color(w.fog).getHexString());
+    x.fillStyle = hzG; x.fillRect(0, hz - 60, W, H);
+    const t = this.texOf(c); t.wrapT = THREE.ClampToEdgeWrapping; return t;
   }
 
   // ---------- path ----------
@@ -191,13 +242,9 @@ export class World3D {
     this.sky = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
     this.sky.geometry.userData = {}; this.sky.userData.own = true; this.sky.renderOrder = -1;
     this.level.add(this.sky);
-    // sky clouds ride with the sky dome
-    const r = rng(w.music * 17 + 3), cm = new THREE.MeshBasicMaterial({ color: w.cave ? 0x8090d0 : 0xffffff, fog: false, transparent: true, opacity: w.cave ? 0.25 : 0.85 });
-    for (let i = 0; i < (w.cave ? 8 : 14); i++) {
-      const a = r() * 6.283, el = 0.12 + r() * 0.35, cl = new THREE.Group();
-      for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(6 + r() * 6, 0), cm); b.userData.own = true; b.position.set(k * 7 - 10, r() * 3, r() * 4); b.scale.y = 0.45; cl.add(b); }
-      cl.position.set(Math.cos(a) * 170 * Math.cos(el), Math.sin(el) * 170, Math.sin(a) * 170 * Math.cos(el)); cl.lookAt(0, cl.position.y, 0); this.sky.add(cl);
-    }
+    // painted panorama backdrop (procedural, original): rides with the camera like a distant matte painting
+    const pan = new THREE.Mesh(new THREE.CylinderGeometry(190, 190, 190, 48, 1, true), new THREE.MeshBasicMaterial({ map: this.panorama(w), side: THREE.BackSide, fog: false, depthWrite: false }));
+    pan.userData.own = true; pan.position.y = 45; pan.renderOrder = -1; this.sky.add(pan);
     if (!w.cave) {
       const sun = new THREE.Mesh(new THREE.CircleGeometry(12, 10), new THREE.MeshBasicMaterial({ color: w.sky3 ? 0xfff4d0 : 0xfffbe0, fog: false }));
       sun.userData.own = true; this.sunDisc = sun; this.level.add(sun);
@@ -229,7 +276,7 @@ export class World3D {
         if (!isS(cx, r0 - 1)) {
           use('top'); quad(P(fa, hT, D), P(fb, hT, D), P(fb, hT, -D), P(fa, hT, -D), top, top, [cx, 0, cx + 1, 0, cx + 1, 1, cx, 1]);
           const lip = ice ? cIce : cGrass.clone().multiplyScalar(0.85);
-          quad(P(fa, hT - 0.22, D + 0.02), P(fb, hT - 0.22, D + 0.02), P(fb, hT, D + 0.02), P(fa, hT, D + 0.02), lip, lip, [cx, 0, cx + 1, 0, cx + 1, 0.2, cx, 0.2]);
+          quad(P(fa, hT - 0.4, D + 0.07), P(fb, hT - 0.4, D + 0.07), P(fb, hT + 0.02, D + 0.07), P(fa, hT + 0.02, D + 0.07), lip, lip, [cx, 0, cx + 1, 0, cx + 1, 0.4, cx, 0.4]);
         }
         // front (camera side) and back
         use('side');
@@ -332,8 +379,8 @@ export class World3D {
   buildScenery(game) {
     const w = game.world, r = rng(game.levelIndex * 31 + 7), q = QUALITY[this.quality].decor;
     const kinds = {
-      tree: () => [[cyl(0.18, 0.25, 1.6, 5), 0x6a4a3a, 0, 0.8, 0], [ico(1.0, 0), w.grass === 0x6fd35a ? 0x4fa65a : 0x5a8a5a, 0, 2.2, 0], [ico(0.7, 0), 0x6fc35a, 0.5, 1.8, 0.3]],
-      pine: () => [[cyl(0.15, 0.2, 1, 5), 0x6a4a3a, 0, 0.5, 0], [cone(0.9, 1.6, 6), 0x2f7a4a, 0, 1.6, 0], [cone(0.65, 1.2, 6), 0x3f9a5a, 0, 2.4, 0]],
+      tree: () => [[cyl(0.18, 0.25, 1.6, 5), 0x6a4a3a, 0, 0.8, 0], [ico(1.0, 0), w.grass === 0x6fd35a ? 0x2f8a3a : 0x5a8a5a, 0, 2.2, 0], [ico(0.7, 0), 0x48b040, 0.5, 1.8, 0.3]],
+      pine: () => [[cyl(0.15, 0.2, 1, 5), 0x6a4a3a, 0, 0.5, 0], [cone(0.9, 1.6, 6), 0x1c5a30, 0, 1.6, 0], [cone(0.65, 1.2, 6), 0x2a7a40, 0, 2.4, 0]],
       flower: () => [[cyl(0.03, 0.03, 0.5, 3), 0x3a8a3a, 0, 0.25, 0], [ico(0.13, 0), [0xff7a9a, 0xffe066, 0x9fd0ff, 0xd5b4ff][Math.floor(r() * 4)], 0, 0.55, 0]],
       shroom: () => [[cyl(0.15, 0.2, 0.6, 5), 0xfff1d8, 0, 0.3, 0], [cone(0.55, 0.45, 7), r() < 0.5 ? 0xe8414e : 0x9b5cf0, 0, 0.75, 0]],
       bush: () => [[ico(0.5, 0), 0x5ab84a, 0, 0.35, 0], [ico(0.4, 0), 0x6fd35a, 0.45, 0.3, 0.1]],
@@ -375,12 +422,18 @@ export class World3D {
       }
       if (r() < 0.25 * q && !w.sky3) { const kind = w.cave ? 'crystal' : 'flower'; this.map(px, 300, 2.2 + r() * 2, v); if (clear(v, 1.8)) add(kind, px, 2.2 + r() * 1.5, w.cave ? 0.3 : 0.6, r() * 6, 0); }
     }
+    if (!w.cave && !w.sky3) for (let px = -60; px < game.pxW + 200; px += 14 * (2 - q)) { // dense pine wall
+      const z = -(10 + r() * 20); this.map(px, 300, z, v); if (!clear(v, 3.2)) continue;
+      add(r() < 0.75 ? 'pine' : 'tree', px, z, 0.9 + r() * 0.9, r() * 6.28, -r() * 0.8);
+    }
+    if (w.cave) for (let px = -60; px < game.pxW + 200; px += 22) { const z = -(8 + r() * 14); this.map(px, 300, z, v); if (clear(v, 3)) add(r() < 0.5 ? 'crystal' : 'icepine', px, z, 1.2 + r(), r() * 6.28, 0); }
+    if (w.sky3) for (let px = -60; px < game.pxW + 200; px += 40) { const z = -(10 + r() * 14); this.map(px, 300, z, v); if (clear(v, 4)) add('tower', px, z, 1 + r() * 0.8, r() * 6.28, -3 - r() * 4); }
     // layered background: far mountains / spires, mid hills, distant castles, waterfalls
     const push = (g, c, m4) => (lists['bg' + c] = lists['bg' + c] || []).push([g, c, m4, 0]);
     const at = (px, z, y, sx, sy, sz, yaw = 0) => { const o = new THREE.Object3D(); this.map(px, 300, z, o.position); o.position.y += y; o.rotation.y = yaw; o.scale.set(sx, sy, sz); o.updateMatrix(); return o.matrix; };
     const farC = new THREE.Color(w.far), snow = w.sky3 ? 0xffffff : w.cave ? 0x9fb8ff : 0xf4f8ff;
     const mount = cone(1, 1, 7), hill = ico(1, 1), cap = cone(1, 1, 7);
-    for (let px = -200; px < game.pxW + 600; px += 120) { // far layer
+    for (let px = -200; px < (w.sky3 ? game.pxW + 600 : -200); px += 120) { // far layer
       const z = -(60 + r() * 45); this.map(px, 300, z, v); if (!clear(v, 40)) continue;
       const s2 = 12 + r() * 16, hgt = s2 * (w.cave ? 2.2 : 1.5);
       if (w.sky3) { push(hill, farC.getHex(), at(px, z, -18, s2 * 1.6, s2 * 0.5, s2)); push(cone(1, 1, 6), 0xffffff, at(px, z, -18 - s2 * 0.6, s2 * 1.2, s2 * 0.9, s2 * 0.8, Math.PI)); }
@@ -556,12 +609,12 @@ export class World3D {
     const boss = g.boss && g.boss.alive && (g.boss.awake || Math.abs(g.boss.x - p.x) < 14 * T) ? 1 : 0;
     c.boss += (boss - c.boss) * k(1.5);
     const fall = Math.max(0, Math.min(1, p.vy / 900)), air = p.onGround ? 0 : 1;
-    const distT = 10 + air * 1.0 + fall * 2.6 + Math.min(1, Math.abs(p.vx) / 400) * 0.8 + c.boss * 4.5;
+    const distT = 8.6 + air * 0.9 + fall * 2.4 + Math.min(1, Math.abs(p.vx) / 400) * 0.8 + c.boss * 4.5;
     c.dist += (distT - c.dist) * k(1.8);
-    const hT = 2.3 + fall * 1.6 + c.boss * 1.2; c.hgt += (hT - c.hgt) * k(1.8);
+    const hT = 1.5 + fall * 1.4 + c.boss * 1.4; c.hgt += (hT - c.hgt) * k(1.8);
     // focus point: hero + horizontal lead; vertical follows faster when falling
     const tg = c.tg.copy(pl).addScaledVector(new V(c.t.x, 0, c.t.z).normalize(), c.la + c.boss * p.face * 0.5);
-    tg.y = pl.y + 0.4 - fall * 1.2 + c.boss * 0.6;
+    tg.y = pl.y + 0.9 - fall * 1.0 + c.boss * 0.8;
     if (snap) c.focus.copy(tg);
     else { const kh = k(7), kv = k(p.vy > 300 ? 9 : 4.5); c.focus.x += (tg.x - c.focus.x) * kh; c.focus.z += (tg.z - c.focus.z) * kh; c.focus.y += (tg.y - c.focus.y) * kv; }
     // never lose the hero: clamp focus to a box around them
@@ -573,7 +626,7 @@ export class World3D {
     cam.position.copy(c.focus).addScaledVector(c.n, c.dist).addScaledVector(UP, c.hgt).addScaledVector(c.t, -p.face * 0.9 - c.boss * 1.5);
     if (g.shakeT > 0) { cam.position.x += (Math.random() - 0.5) * g.shakeT * 1.5; cam.position.y += (Math.random() - 0.5) * g.shakeT * 1.5; }
     cam.lookAt(c.focus);
-    const fovT = 50 + c.boss * 4 + fall * 4; if (Math.abs(cam.fov - fovT) > 0.05) { cam.fov += (fovT - cam.fov) * k(2); cam.updateProjectionMatrix(); }
+    const fovT = 52 + c.boss * 6 + fall * 4; if (Math.abs(cam.fov - fovT) > 0.05) { cam.fov += (fovT - cam.fov) * k(2); cam.updateProjectionMatrix(); }
     this.sky.position.copy(cam.position);
     if (this.sunDisc) { this.sunDisc.position.copy(cam.position).addScaledVector(f.n, -150).add(this.tmpV.set(f.t.x * 50, 60, f.t.z * 50)); this.sunDisc.lookAt(cam.position); }
   }

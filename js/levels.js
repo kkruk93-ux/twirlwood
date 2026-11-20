@@ -62,7 +62,7 @@ export const CHUNKS = {
 export const WORLDS = [
   {
     name: 'Lanternleaf Forest', boss: 'bramble', bossName: 'Bramblecrown',
-    sky: [0x6fc8ff, 0xcdeeff], fog: 0xbfe6ff, grass: 0x6fd35a, dirt: 0x8a5a3a, dirt2: 0x5e3a26, plank: 0xe8b56a, accent: 0xff9a3a,
+    sky: [0x6fc8ff, 0xcdeeff], fog: 0x9ed4f0, grass: 0x5cc844, dirt: 0x8a5a3a, dirt2: 0x5e3a26, plank: 0xe8b56a, accent: 0xff9a3a,
     decor: ['tree', 'tree', 'pine', 'flower', 'shroom', 'bush', 'lantern'], far: 0x5aa860, music: 0,
   },
   {

@@ -1,4 +1,4 @@
-const CACHE = 'twirlwood-v4';
+const CACHE = 'twirlwood-v5';
 const ASSETS = ['./', './index.html', './privacy.html', './manifest.json', './css/styles.css',
   './js/main.js', './js/game.js', './js/levels.js', './js/world3d.js', './js/models.js', './js/art.js', './js/audio.js', './js/input.js', './js/storage.js', './js/monetization.js',
   './vendor/three/three.module.min.js', './vendor/three/three.core.min.js',

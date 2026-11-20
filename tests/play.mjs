@@ -37,7 +37,7 @@ async function shot(level, x, name, ch = 'wren') {
 }
 await shot(0, 1200, '03-level1', 'wren');
 await shot(1, 2300, '04-level2', 'bobble');
-await shot(2, 8900, '05-level3-boss', 'wren');
+await shot(2, 8640, '05-level3-boss', 'wren');
 // real touch input check: hold right via touch overlay
 await page.evaluate(() => window.__tw.start(0, 'wren')); await page.waitForTimeout(300);
 const x0 = await page.evaluate(() => window.__tw.game.p.x);

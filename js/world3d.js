@@ -667,7 +667,7 @@ export class World3D {
       if (e.type === 'ember') { md.root.visible = vis && e.state !== 'wait'; if (md.flames) md.flames.forEach((f, i) => { f.scale.y = 0.8 + Math.sin(g.t * 20 + i * 2) * 0.35; }); md.g.rotation.z = e.vy > 0 ? Math.PI : 0; }
       if (e.type === 'boss') {
         const warn = (e.warn || 0) > 0, k = e.phase2 ? 1.12 : 1;
-        md.shell.visible = (warn && Math.floor(g.t * 16) % 2 === 0) || (e.phase2 && Math.floor(g.t * 3) % 3 === 0);
+        md.shell.visible = !!((warn && Math.floor(g.t * 16) % 2 === 0) || (e.phase2 && Math.floor(g.t * 3) % 3 === 0));
         md.root.scale.setScalar(k * (warn ? 1 + Math.sin(g.t * 40) * 0.04 : 1));
         if (md.arms) md.arms.forEach((a, i) => { a.rotation.x = warn ? -2.2 : Math.sin(e.t * 6 + i * 3) * 0.5; });
         if (md.head) md.head.rotation.y = Math.sin(e.t * 2) * 0.3;

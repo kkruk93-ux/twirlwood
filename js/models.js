@@ -206,14 +206,16 @@ export function makeBoss(kind) {
   parts.arms = [];
   if (kind === 'magma') {
     const torso = pivot(g, 0, 0, 0); parts.torso = torso;
-    torso.add(m(box(1.5, 1.2, 1.1), 0x3a2a2a, 0, 1.3, 0)); torso.add(m(box(1.1, 0.5, 0.9), 0x4a3430, 0, 2.1, 0));
+    torso.add(m(box(1.5, 1.2, 1.1), 0x7a6058, 0, 1.3, 0)); torso.add(m(box(1.1, 0.5, 0.9), 0x8a6a5e, 0, 2.1, 0));
     for (const [x, y] of [[-0.4, 1.4], [0.3, 1.1], [0.1, 1.7], [-0.2, 0.95]]) torso.add(m(box(0.5, 0.06, 0.02), 0xff7a1a, x, y, 0.56, { emissive: 0xff4a00 }));
+    for (const [x, y, z] of [[-0.5, 2.2, 0.3], [0.55, 2.15, -0.1], [0, 2.3, -0.3]]) torso.add(m(ico(0.32, 0), 0x9a7a6a, x, y, z));
+    torso.add(m(box(0.7, 0.5, 0.05), 0xffa030, 0, 1.35, 0.56, { emissive: 0xff5a00 }));
     const head = pivot(torso, 0, 2.55, 0.1); parts.head = head;
-    head.add(m(box(0.8, 0.6, 0.7), 0x2a1e1e)); head.add(m(box(0.55, 0.12, 0.05), 0xffd23a, 0, 0.05, 0.36, { emissive: 0xff8a00 }));
-    for (const s of [-1, 1]) head.add(m(cone(0.12, 0.4, 4), 0x2a1e1e, s * 0.3, 0.45, 0));
-    for (const s of [-1, 1]) { const a = pivot(torso, s * 0.95, 1.8, 0); a.add(m(box(0.45, 1.0, 0.45), 0x3a2a2a, 0, -0.45, 0)); a.add(m(box(0.55, 0.45, 0.55), 0x2a1e1e, 0, -1.05, 0)); a.add(m(box(0.4, 0.05, 0.02), 0xff7a1a, 0, -0.4, 0.24, { emissive: 0xff4a00 })); parts.arms.push(a); }
+    head.add(m(box(0.8, 0.6, 0.7), 0x5a4640)); head.add(m(box(0.55, 0.12, 0.05), 0xffd23a, 0, 0.05, 0.36, { emissive: 0xff8a00 }));
+    for (const s of [-1, 1]) head.add(m(cone(0.12, 0.4, 4), 0x5a4640, s * 0.3, 0.45, 0));
+    for (const s of [-1, 1]) { const a = pivot(torso, s * 0.95, 1.8, 0); a.add(m(box(0.45, 1.0, 0.45), 0x7a6058, 0, -0.45, 0)); a.add(m(box(0.55, 0.45, 0.55), 0x5a4640, 0, -1.05, 0)); a.add(m(box(0.4, 0.05, 0.02), 0xff7a1a, 0, -0.4, 0.24, { emissive: 0xff4a00 })); parts.arms.push(a); }
     parts.legs = [];
-    for (const s of [-1, 1]) { const l = pivot(g, s * 0.45, 0.75, 0); l.add(m(box(0.5, 0.75, 0.55), 0x2a1e1e, 0, -0.38, 0)); parts.legs.push(l); }
+    for (const s of [-1, 1]) { const l = pivot(g, s * 0.45, 0.75, 0); l.add(m(box(0.5, 0.75, 0.55), 0x5a4640, 0, -0.38, 0)); parts.legs.push(l); }
   } else if (kind === 'bramble') {
     for (const s of [-1, 1]) { const a = pivot(g, s * 1.0, 0.75, 0.6); a.add(m(box(0.16, 0.16, 0.7), 0x5a3a9a, 0, 0, 0.3)); a.add(m(cone(0.14, 0.4, 4), 0xffd23a, 0, 0, 0.75).rotateX(Math.PI / 2)); parts.arms.push(a); }
     for (let i = 0; i < 8; i++) g.add(m(cone(0.1, 0.35, 4), 0x3a2a6a, Math.cos(i * 0.8) * 0.95, 0.75, Math.sin(i * 0.8) * 0.95 - 0.1));

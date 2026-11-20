@@ -1,0 +1,23 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ channel: 'chrome', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const c = await b.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const p = await c.newPage(); const errors = [];
+p.on('pageerror', (e) => errors.push(String(e))); p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+await p.goto('http://127.0.0.1:4180/'); await p.waitForTimeout(2500);
+await p.click('[data-testid=btn-play]'); await p.waitForTimeout(1500);
+console.log('intro visible', await p.isVisible('#scr-intro'));
+await p.click('#btn-intro-skip'); await p.waitForTimeout(500);
+console.log('map visible', await p.isVisible('#scr-map'));
+await p.click('[data-testid=char-pip]'); await p.waitForTimeout(300);
+console.log('char after pip click', await p.evaluate(() => window.__tw.data().char));
+await p.click('[data-testid=btn-trial]');
+await p.screenshot({ path: '/tmp/tw20/m1-map-trial.png' });
+await p.evaluate(() => { window.__tw.start(4, 'wren'); window.__tw.manual(true); });
+let info; for (let k = 0; k < 30; k++) { info = await p.evaluate(() => window.__tw.sim(8)); if (info.done) break; }
+await p.evaluate(() => window.__tw.sim(3)); await p.evaluate(() => window.__tw.manual(false)); await p.waitForTimeout(1500);
+await p.screenshot({ path: '/tmp/tw20/m2-done.png' });
+const d = await p.evaluate(() => { const d = window.__tw.data(); return { bank: d.bank, ach: Object.keys(d.ach), trial: d.trial, unlocked: d.unlocked, stats: d.stats }; });
+console.log(JSON.stringify(d));
+await p.evaluate(() => document.querySelector('#btn-done-next')?.click()); await p.waitForTimeout(600);
+console.log('roster', await p.evaluate(() => window.__tw.game.roster));
+console.log('errors', JSON.stringify(errors)); await b.close();

@@ -173,7 +173,7 @@ export const LEVELS = [
   L(2, 'Spire Climb', ['start', 'clouds', 'crumble', 'rollers', 'check', 'spikes2', 'swing', 'bats', 'upper', 'checkh', 'clouds', 'wheel', 'pitsplats', 'vertical', 'wisps', 'crates', 'goal']),
   L(2, 'Rook Roost', ['start', 'clouds', 'stairs', 'check', 'wisps', 'swing', 'secret', 'checkh', 'crates', 'boss']),
   L(3, 'Cinder Gate', ['start', 'meadow', 'lava', 'conveyor', 'check', 'bugs', 'embers', 'stairs', 'checkh', 'swing', 'lava', 'crates', 'goal']),
-  L(3, 'Rail Run', ['start', 'conveyor', 'moving', 'lava', 'check', 'rollers', 'conveyor', 'wheel', 'checkh', 'secretdoor', 'embers', 'spring', 'goal', 'bonus']),
+  L(3, 'Rail Run', ['start', 'conveyor', 'moving', 'lava', 'upper', 'check', 'rollers', 'conveyor', 'wheel', 'checkh', 'secretdoor', 'embers', 'spring', 'crates', 'goal', 'bonus']),
   L(3, 'Magma Falls', ['start', 'embers', 'crumble', 'lava', 'check', 'vertical', 'conveyor', 'fork', 'checkh', 'swing', 'lava', 'spikes2', 'goal']),
   L(3, 'Forge Heart', ['start', 'lava', 'wheel', 'conveyor', 'check', 'embers', 'upper', 'crumble', 'checkh', 'rollers', 'swing', 'lava', 'moving', 'crates', 'goal']),
   L(3, 'Golem Furnace', ['start', 'conveyor', 'lava', 'check', 'embers', 'swing', 'checkh', 'crates', 'boss']),
